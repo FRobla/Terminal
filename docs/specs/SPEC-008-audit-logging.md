@@ -1,0 +1,85 @@
+# SPEC-008 — Audit Logging
+
+| Field | Value |
+| --- | --- |
+| Status | READY |
+| Iteration | 01 (foundation), extended by every later iteration |
+| Domain(s) | `audit` |
+| Criteria prefix | `AUD` |
+| Related | SECURITY.md §7, SPEC-007 |
+
+## 1. Problem and goal
+
+Every sensitive action must leave an immutable, queryable record that answers who did what, to which resource, when, from where, with what result — without ever storing secrets.
+
+## 2. Record
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | UUID v7 | Time-ordered |
+| `occurredAt` | timestamptz | Server time |
+| `organizationId` | UUID, nullable | Null only for pre-membership events (e.g. failed login) |
+| `actorType` | enum | `user`, `system`, `worker`, `anonymous` |
+| `actorId` | UUID, nullable | User id when applicable |
+| `action` | text | Dotted verb, from the catalog below |
+| `resourceType` | text | e.g. `wallet`, `session`, `transaction`, `provider` |
+| `resourceId` | text, nullable | e.g. address, transaction id |
+| `result` | enum | `success`, `failure`, `denied` |
+| `requestId` | text | Correlates with logs and traces |
+| `ipAddress` | inet, nullable | Stored where appropriate (auth and sensitive actions) |
+| `userAgent` | text, nullable | Truncated to 512 characters |
+| `cluster` | enum, nullable | For Solana-related actions |
+| `metadata` | jsonb | Sanitized, schema-validated per action; never secrets |
+
+## 3. Rules
+
+1. Audit writes for an action happen in the same database transaction as the action's state change where there is one; otherwise immediately after, with failure logged at `error` level and retried.
+2. The application role cannot `UPDATE` or `DELETE` audit rows.
+3. Each action has a Zod metadata schema; unknown keys are stripped. A denylist test ensures no key such as `privateKey`, `secretKey`, `seed`, `mnemonic`, `passphrase`, `password`, `signature` (of auth messages), `token`, `apiKey`, or `cookie` can be stored.
+4. Reading the audit log requires `audit.read` and is scoped to the active organization.
+5. Retention: indefinite during the MVP; a retention policy is required before Mainnet.
+
+## 4. Action catalog
+
+| Action | Iteration |
+| --- | --- |
+| `user.login`, `user.login_failed`, `user.logout` | 01 |
+| `wallet.connected`, `wallet.connection_rejected` | 01 |
+| `role.assigned`, `role.revoked`, `permission.changed` | 01 (bootstrap) / 08 |
+| `provider.changed`, `provider.disabled`, `provider.enabled` | 01 (config) / 08 (UI) |
+| `wallet.created`, `wallet.assigned`, `wallet.updated`, `wallet.exported` | 02 |
+| `transaction.prepared`, `transaction.simulated`, `transaction.signed`, `transaction.submitted`, `transaction.confirmed`, `transaction.failed`, `transaction.reconciled`, `transaction.reconciliation_required` | 02 |
+| `token.created`, `token.authority_changed`, `token.metadata_updated` | 05 |
+| `alert.created`, `alert.updated`, `alert.deleted` | 07 |
+| `organization.created`, `organization.updated`, `member.invited`, `member.removed`, `api_credential.created`, `api_credential.revoked` | 08 |
+
+## 5. Acceptance criteria
+
+### AUD-AC-01 — Required fields
+Given any audited action
+When it occurs
+Then a record with `occurredAt`, `actorType`, `action`, `resourceType`, `result`, and `requestId` is persisted, and `organizationId`/`actorId` are present whenever known.
+
+### AUD-AC-02 — Immutability
+Given the application database role
+When it attempts to update or delete an audit record
+Then the database rejects it.
+
+### AUD-AC-03 — No secrets
+Given metadata containing a denylisted key
+When the event is recorded
+Then the key is not persisted (schema strips it and the denylist test passes for every action schema).
+
+### AUD-AC-04 — Denied actions are audited
+Given a request rejected by authorization for a sensitive action
+When it is rejected
+Then an event with `result: denied` is recorded.
+
+### AUD-AC-05 — Scoped reading
+Given a user with `audit.read` in organization A
+When they list audit events
+Then only organization A's events are returned, newest first, paginated.
+
+## Amendments
+
+_None._

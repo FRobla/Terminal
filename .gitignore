@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Environment files (only .env.example is committed)
+.env
+.env.*
+!.env.example
+
+# Build output
+.next/
+dist/
+build/
+out/
+coverage/
+.turbo/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local keypairs (never commit key material)
+*.keypair.json
+id.json
