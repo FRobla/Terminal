@@ -12,7 +12,9 @@ export function proxy(request: NextRequest) {
   const policy = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}'`,
+    // Development injects un-nonced <style> elements (CSS hot reload, dev overlay); a nonce would
+    // make browsers ignore 'unsafe-inline', so development omits it (Next.js CSP guide).
+    `style-src 'self' ${isDevelopment ? "'unsafe-inline'" : `'nonce-${nonce}'`}`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",

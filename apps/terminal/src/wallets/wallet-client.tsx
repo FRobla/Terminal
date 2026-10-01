@@ -3,7 +3,7 @@
 import { WALLET_STANDARD_CHAINS } from "@sct/network";
 import { createClient } from "@solana/kit";
 import { walletWithoutSigner, type ClientWithWallet } from "@solana/kit-plugin-wallet";
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useState, useSyncExternalStore, type ReactNode } from "react";
 import { publicConfig } from "../platform/public-config";
 
 /**
@@ -16,10 +16,11 @@ const WalletClientContext = createContext<ClientWithWallet | null>(null);
 export const TERMINAL_WALLET_CHAIN = WALLET_STANDARD_CHAINS[publicConfig.NEXT_PUBLIC_SOLANA_CLUSTER];
 
 export function WalletClientProvider(props: { children: ReactNode }) {
+  // Lives as long as the page (the provider sits in the root layout), so it is never disposed:
+  // StrictMode's simulated unmount would dispose it, and a disposed store ignores every connection.
   const [client] = useState(() =>
     createClient().use(walletWithoutSigner({ chain: TERMINAL_WALLET_CHAIN, storageKey: "sct:wallet" })),
   );
-  useEffect(() => () => client[Symbol.dispose]?.(), [client]);
   return <WalletClientContext.Provider value={client}>{props.children}</WalletClientContext.Provider>;
 }
 

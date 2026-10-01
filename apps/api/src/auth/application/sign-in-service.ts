@@ -22,6 +22,8 @@ export interface SignInConfig {
   publicAppOrigin: string;
   sessionTtlSeconds: number;
   bootstrapOwnerWalletAddress: string | undefined;
+  /** Temporary policy until membership management exists: role granted to users without any membership (RBAC-AC-05). */
+  defaultMemberRole: string | undefined;
 }
 
 export interface ClientMetadata {
@@ -162,6 +164,33 @@ export class SignInService {
               actorType: "system",
               organizationId: bootstrap.organizationId,
               metadata: { roleKey: "owner", targetUserId: identity.userId, reason: "bootstrap owner" },
+            },
+            transaction,
+          );
+        }
+      }
+
+      if (this.config.defaultMemberRole) {
+        const grant = await this.deps.memberships.grantDefaultRoleIfUnaffiliated(
+          identity.userId,
+          DEFAULT_ORGANIZATION_SLUG,
+          this.config.defaultMemberRole,
+          transaction,
+        );
+        if (grant.granted) {
+          await this.deps.audit.record(
+            {
+              action: "role.assigned",
+              resourceType: "membership",
+              resourceId: identity.userId,
+              result: "success",
+              actorType: "system",
+              organizationId: grant.organizationId,
+              metadata: {
+                roleKey: this.config.defaultMemberRole,
+                targetUserId: identity.userId,
+                reason: "default member role",
+              },
             },
             transaction,
           );

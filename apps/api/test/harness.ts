@@ -86,6 +86,7 @@ export async function createTestApi(options: TestApiOptions = {}) {
     SESSION_TTL_SECONDS: 43200,
     SESSION_IDLE_TIMEOUT_SECONDS: 1800,
     BOOTSTRAP_OWNER_WALLET_ADDRESS: undefined,
+    DEFAULT_MEMBER_ROLE: undefined,
     ...options.config,
   };
   const services = createApiServices(config, { redis, database, logger });

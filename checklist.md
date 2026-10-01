@@ -115,6 +115,7 @@ Verification:
 - [x] Session creation (hashed ids), cookie flags, idle/absolute expiry, logout
 - [x] Provisioning — Amendment 2026-09-30: replaced by SPEC-007 RBAC-AC-04 (bootstrap owner via `BOOTSTRAP_OWNER_WALLET_ADDRESS`; no automatic membership for other users), which takes precedence over the earlier "viewer by default" note
 - [x] Audit: `user.login`, `user.login_failed`, `user.logout`, `authorization.denied`, `role.assigned`
+- [x] Temporary default member role `DEFAULT_MEMBER_ROLE` for unaffiliated users, rejected in production (RBAC-AC-05, owner request 2026-10-01; remove once Iteration 08 membership management ships)
 
 #### 1.9 Wallet Overview backend (`apps/api/src/wallets`)
 - [x] Domain mappings: lamports, token amounts (exact integer arithmetic), token accounts, signature summaries, untrusted-text sanitizer
@@ -130,6 +131,8 @@ Verification:
 - [x] Shell: navigation (only existing capabilities), status bar with `SOLANA DEVNET`, cluster verification status, provider health, organization, sign out
 - [x] `@solana/kit-plugin-wallet` connection (`walletWithoutSigner`, chain-filtered discovery) in a client island
 - [x] Sign-in flow (SIWS) and session handling
+- [x] Wallet connection moved to the status bar (`Connect <wallet>` on every page); connecting while signed out also signs in (AUTH-AC-07, added 2026-10-01)
+- [x] Fix: wallet client disposed by StrictMode in development; development CSP allows Next.js `<style>` elements (2026-10-01)
 
 #### 1.11 Wallet Overview UI (`apps/terminal/src/wallets`)
 - [x] Address (copy, explorer link), SOL balance with freshness and a provenance popover

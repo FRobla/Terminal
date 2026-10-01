@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useConnect,
   useConnectedWallet,
   useDisconnect,
   useIsWalletReady,
@@ -10,10 +9,8 @@ import {
 import type { SessionResponse } from "@sct/validation";
 import { walletConnectionResponseSchema } from "@sct/validation";
 import { AddressText, Button, EmptyState, ErrorState, LoadingState, Panel } from "@sct/ui";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { signInWithWallet } from "../auth/sign-in";
-import { SESSION_QUERY_KEY } from "../auth/use-session";
+import { useEffect, useRef } from "react";
+import { useWalletSignIn } from "../auth/use-wallet-sign-in";
 import { ApiRequestError, apiRequest } from "../platform/api-client";
 import { TERMINAL_WALLET_CHAIN, useIsHydrated, useWalletClient } from "./wallet-client";
 
@@ -24,8 +21,8 @@ function describeError(error: unknown): { title: string; requestId?: string | un
 }
 
 /**
- * WO-AC-01, WO-AC-02, WO-AC-14, WO-AC-15 — wallet discovery, connection, the cluster
- * check, sign-in, and connection auditing.
+ * WO-AC-01, WO-AC-02, WO-AC-14, WO-AC-15 — connected wallet, the cluster check, sign-in,
+ * and connection auditing. Connecting happens from the status bar (WalletConnectControl).
  */
 export function WalletConnectionPanel(props: { session: SessionResponse | null }) {
   const client = useWalletClient();
@@ -35,13 +32,9 @@ export function WalletConnectionPanel(props: { session: SessionResponse | null }
   const ready = hydrated && walletReady;
   const wallets = useWallets(client);
   const connected = useConnectedWallet(client);
-  const connect = useConnect(client);
   const disconnect = useDisconnect(client);
-  const queryClient = useQueryClient();
-  const [signInError, setSignInError] = useState<unknown>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  const { signIn, pending: signingIn, error: signInError } = useWalletSignIn();
 
-  const address = connected?.account.address ?? null;
   const supportsCluster = connected ? connected.account.chains.includes(TERMINAL_WALLET_CHAIN) : false;
 
   // Record each (session, account) connection once; the API audits it (WO-AC-02 / WO-AC-15).
@@ -63,20 +56,6 @@ export function WalletConnectionPanel(props: { session: SessionResponse | null }
       recorded.current = null;
     });
   }, [props.session, connected]);
-
-  const onSignIn = async () => {
-    if (!connected || !address) return;
-    setSigningIn(true);
-    setSignInError(null);
-    try {
-      await signInWithWallet(client, connected.wallet, address);
-      await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-    } catch (error) {
-      setSignInError(error);
-    } finally {
-      setSigningIn(false);
-    }
-  };
 
   return (
     <Panel title="Wallet">
@@ -100,7 +79,7 @@ export function WalletConnectionPanel(props: { session: SessionResponse | null }
                 Sign in by signing a text message with this wallet. It does not create a transaction or cost
                 any fees.
               </p>
-              <Button variant="primary" onClick={onSignIn} disabled={signingIn}>
+              <Button variant="primary" onClick={() => void signIn()} disabled={signingIn}>
                 {signingIn ? "Waiting for wallet signature…" : "Sign in with this wallet"}
               </Button>
               {signInError ? <ErrorState {...describeError(signInError)} /> : null}
@@ -121,22 +100,9 @@ export function WalletConnectionPanel(props: { session: SessionResponse | null }
           enable Devnet.
         </EmptyState>
       ) : (
-        <div className="space-y-2">
-          <p className="text-[12px] text-text-secondary">Connect a wallet to view its overview.</p>
-          <ul className="flex flex-wrap gap-2" aria-label="Detected wallets">
-            {wallets.map((wallet) => (
-              <li key={wallet.name}>
-                <Button onClick={() => connect.dispatch(wallet)} disabled={connect.isRunning}>
-                  <img src={wallet.icon} alt="" width={14} height={14} />
-                  Connect {wallet.name}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {connect.error && (connect.error as Error).name !== "AbortError" ? (
-            <ErrorState title="The wallet connection was not completed." />
-          ) : null}
-        </div>
+        <p className="text-[12px] text-text-secondary">
+          Use the Connect button in the top bar to connect a wallet, sign in, and view its overview.
+        </p>
       )}
     </Panel>
   );

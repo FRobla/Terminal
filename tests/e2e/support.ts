@@ -56,11 +56,13 @@ export async function grantRoleToWallet(address: string, roleKey: string): Promi
   ]);
 }
 
-/** Connects the injected test wallet and signs in through the UI. Returns the wallet address. */
+/** Connects the injected test wallet from the status bar, which also signs in. Returns the wallet address. */
 export async function connectAndSignIn(page: Page): Promise<string> {
   await page.goto("/");
-  await page.getByRole("button", { name: /Connect SCT Test Wallet/ }).click();
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: /Connect SCT Test Wallet/ })
+    .click();
   await expect(page.getByText("Signed out")).toHaveCount(0);
   return testWalletAddress(page);
 }

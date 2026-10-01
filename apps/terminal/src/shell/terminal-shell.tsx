@@ -10,6 +10,7 @@ import { NetworkIndicator } from "../network/network-indicator";
 import { useNetworkIdentity } from "../network/use-network-identity";
 import { ProviderStatusText } from "../system/provider-status";
 import { useProviderHealth } from "../system/use-provider-health";
+import { WalletConnectControl } from "../wallets/wallet-connect-control";
 
 /** Only capabilities that exist are listed (prompt §106). */
 const NAVIGATION = [
@@ -51,7 +52,7 @@ function StatusBar() {
           )}
         </Link>
       ) : null}
-      <span className="ml-auto flex items-center gap-2 text-text-secondary">
+      <span className="ml-auto flex flex-wrap items-center gap-2 text-text-secondary">
         {session ? (
           <>
             <span>{session.organization?.name ?? "No organization"}</span>
@@ -67,6 +68,7 @@ function StatusBar() {
         ) : (
           <span>Signed out</span>
         )}
+        <WalletConnectControl signedIn={session !== null} />
       </span>
     </div>
   );

@@ -45,6 +45,7 @@ export type ApiConfig = Pick<
   | "SESSION_TTL_SECONDS"
   | "SESSION_IDLE_TIMEOUT_SECONDS"
   | "BOOTSTRAP_OWNER_WALLET_ADDRESS"
+  | "DEFAULT_MEMBER_ROLE"
 >;
 
 export interface ApiInfrastructure {
@@ -94,6 +95,7 @@ export function createApiServices(config: ApiConfig, infrastructure: ApiInfrastr
       publicAppOrigin: config.PUBLIC_APP_ORIGIN,
       sessionTtlSeconds: config.SESSION_TTL_SECONDS,
       bootstrapOwnerWalletAddress: config.BOOTSTRAP_OWNER_WALLET_ADDRESS,
+      defaultMemberRole: config.DEFAULT_MEMBER_ROLE,
     },
     {
       unitOfWork: new DatabaseUnitOfWork(db),

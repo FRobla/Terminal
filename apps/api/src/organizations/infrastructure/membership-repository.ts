@@ -112,4 +112,52 @@ export class MembershipRepository implements MembershipStore {
       .onConflictDoNothing();
     return { granted: true, organizationId: organization.id };
   }
+
+  async grantDefaultRoleIfUnaffiliated(
+    userId: string,
+    organizationSlug: string,
+    roleKey: string,
+    transaction: Transaction,
+  ) {
+    const tx = transaction as Database;
+    const [organization] = await tx
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.slug, organizationSlug));
+    if (!organization) return { granted: false, organizationId: null };
+
+    const [existing] = await tx
+      .select({ id: schema.organizationMemberships.id })
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, userId),
+          eq(schema.organizationMemberships.status, "active"),
+        ),
+      )
+      .limit(1);
+    if (existing) return { granted: false, organizationId: organization.id };
+
+    const [role] = await tx
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(and(isNull(schema.roles.organizationId), eq(schema.roles.key, roleKey)));
+    if (!role) return { granted: false, organizationId: organization.id };
+
+    const [membership] = await tx
+      .insert(schema.organizationMemberships)
+      .values({ organizationId: organization.id, userId })
+      .onConflictDoUpdate({
+        target: [schema.organizationMemberships.organizationId, schema.organizationMemberships.userId],
+        set: { status: "active" },
+      })
+      .returning({ id: schema.organizationMemberships.id });
+    if (!membership) throw new Error("Failed to create default membership");
+
+    await tx
+      .insert(schema.membershipRoles)
+      .values({ membershipId: membership.id, roleId: role.id })
+      .onConflictDoNothing();
+    return { granted: true, organizationId: organization.id };
+  }
 }

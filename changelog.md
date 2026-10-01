@@ -21,6 +21,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versio
 - Terminal shell with a permanent `SOLANA DEVNET` indicator, cluster and provider status, nonce-based CSP, and same-origin API rewrites.
 - Tests: unit, integration (real PostgreSQL and Redis, stub RPC for failure modes), opt-in Devnet tests against the public RPC, and Playwright end-to-end tests with a test-only Wallet Standard wallet and axe accessibility checks.
 - CI workflows (quality gates, nightly Devnet), Dependabot, dependency-boundary rules, and a production bundle check for test-only code.
+- Wallet connection moved to the status bar: `Connect <wallet>` buttons on every page; while signed out, connecting also signs in with that wallet (AUTH-AC-07). The Wallet panel no longer lists wallets.
+- Temporary default member role (`DEFAULT_MEMBER_ROLE`, non-production only): users without any membership receive the configured system role in the default organization on sign-in, audited as `role.assigned` (RBAC-AC-05). Bridges the gap until organization management in Iteration 08.
+
+### Fixed — Iteration 01
+- Wallet connection did nothing in development: React StrictMode's simulated unmount disposed the wallet client, which then ignored every connection. The client is no longer disposed (it lives as long as the page).
+- Development CSP blocked Next.js hot-reload and overlay `<style>` elements; development now uses `style-src 'unsafe-inline'` without a nonce. Production is unchanged.
 
 ### Changed — Iteration 01
 - TypeScript pinned to 6.0.3: TypeScript 7.0.2 ships no classic compiler API and typescript-eslint supports `<6.1.0`.

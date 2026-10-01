@@ -73,6 +73,7 @@ All variables are validated at startup by Zod schemas in `packages/config`. Inva
 | `SESSION_TTL_SECONDS` | no | api | Absolute session lifetime (default 43200) |
 | `SESSION_IDLE_TIMEOUT_SECONDS` | no | api | Idle timeout (default 1800) |
 | `BOOTSTRAP_OWNER_WALLET_ADDRESS` | no | api | Public address that becomes owner of the default organization on first sign-in while it has no owner (SPEC-007) |
+| `DEFAULT_MEMBER_ROLE` | no | api | Temporary: system role (`admin`, `operator`, `trader`, `analyst`, `auditor`, `viewer`) granted in the default organization to users without a membership on sign-in; rejected when `APP_ENV=production` (SPEC-007 RBAC-AC-05) |
 | `LOG_LEVEL` | no | all | `debug`, `info`, `warn`, `error` (default `info`) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | no | all | Enables OpenTelemetry export when set |
 | `RUN_DEVNET_TESTS` | no | tests | `true` enables `@devnet` tests |

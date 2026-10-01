@@ -308,4 +308,48 @@ describe("RBAC", () => {
     const assignedAgain = await migratorQuery("SELECT 1 FROM audit_events WHERE action = 'role.assigned'");
     expect(assignedAgain).toHaveLength(1);
   });
+
+  it("RBAC-AC-05: with a default member role, unaffiliated users receive it once; the bootstrap owner stays owner", async () => {
+    const owner = await createTestKeyPair();
+    api = await createTestApi({
+      config: { BOOTSTRAP_OWNER_WALLET_ADDRESS: owner.address, DEFAULT_MEMBER_ROLE: "admin" },
+    });
+    await api.signIn(owner);
+    const member = await createTestKeyPair();
+    const memberSession = await api.signIn(member);
+
+    const roles = await migratorQuery<{ key: string; address: string }>(
+      `SELECT r.key, w.address FROM membership_roles mr
+         JOIN roles r ON r.id = mr.role_id
+         JOIN organization_memberships m ON m.id = mr.membership_id
+         JOIN user_wallet_identities w ON w.user_id = m.user_id`,
+    );
+    expect(roles).toEqual(
+      expect.arrayContaining([
+        { key: "owner", address: owner.address },
+        { key: "admin", address: member.address },
+      ]),
+    );
+    expect(roles).toHaveLength(2);
+
+    const memberView = (
+      await api.app.inject({ method: "GET", url: "/api/v1/auth/session", cookies: memberSession.cookies })
+    ).json().data;
+    expect(memberView.organization.slug).toBe("default");
+    expect(memberView.permissions).toContain("wallet.read");
+    const overview = await api.app.inject({
+      method: "GET",
+      url: `/api/v1/wallets/${member.address}/overview`,
+      cookies: memberSession.cookies,
+    });
+    expect(overview.statusCode).not.toBe(403);
+
+    await api.signIn(member);
+    await api.signIn(owner);
+    const assigned = await migratorQuery<{ metadata: Record<string, unknown> }>(
+      "SELECT metadata FROM audit_events WHERE action = 'role.assigned'",
+    );
+    expect(assigned).toHaveLength(2);
+    expect(assigned.map((row) => row.metadata.reason).sort()).toEqual(["bootstrap owner", "default member role"]);
+  });
 });

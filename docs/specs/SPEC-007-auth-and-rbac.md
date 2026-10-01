@@ -134,3 +134,15 @@ Then the user becomes `owner` of the default organization and `role.assigned` is
 - **2026-09-30 (Iteration 01) — Local cookie name:** `__Host-` cookies require `Secure`, which browsers honor only over HTTPS. When `PUBLIC_APP_ORIGIN` uses `http:` (local development), the cookie is `sct_session` without `Secure`; over HTTPS it is `__Host-sct_session` with `Secure`.
 - **2026-09-30:** sessions also store the signed-in wallet address. Permission changes take effect on the next sign-in or after the ≤ 60 s permission cache expires.
 - **2026-09-30:** denied permission checks are audited as `authorization.denied` (AUD-AC-04).
+- **2026-10-01 (Iteration 01) — Status-bar sign-in (owner request):** sign-in was reachable only from the Wallet panel after connecting a wallet. Added criterion AUTH-AC-07:
+
+  ### AUTH-AC-07 — Sign-in from the status bar
+  Given a signed-out user on any page
+  When at least one Devnet-capable wallet is detected
+  Then the status bar shows one `Connect <wallet name>` button per detected wallet, which connects that wallet and signs in with it in a single action (signed in without a connected wallet, they only connect); the Wallet panel no longer lists wallets. When no Devnet wallet is detected or the connected account lacks Devnet, the status bar states why instead of offering the buttons.
+- **2026-10-01 (Iteration 01) — Temporary default member role (owner request):** until membership management ships (Iteration 08), the owner wants every new user to have full use of the terminal. `DEFAULT_MEMBER_ROLE` (optional; one of the non-owner system roles) relaxes §3.4/RBAC-AC-04's "no automatic membership" only when set. RBAC-AC-03 still holds when it is unset. Remove this mechanism once Iteration 08 delivers invitations.
+
+  ### RBAC-AC-05 — Default member role
+  Given `DEFAULT_MEMBER_ROLE` is set and `APP_ENV` is not `production`
+  When a user with no active membership signs in (after the bootstrap-owner check)
+  Then they become a member of the default organization with that system role, `role.assigned` is audited with reason `default member role`, and users who already hold a membership (including the bootstrap owner) are unchanged. Configuration with `APP_ENV=production` is rejected at startup, and `owner` is not an accepted value.

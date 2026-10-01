@@ -53,6 +53,13 @@ export interface MembershipStore {
     organizationSlug: string,
     transaction: Transaction,
   ): Promise<{ granted: boolean; organizationId: string | null }>;
+  /** Grants a system role in the given organization when the user has no active membership anywhere. */
+  grantDefaultRoleIfUnaffiliated(
+    userId: string,
+    organizationSlug: string,
+    roleKey: string,
+    transaction: Transaction,
+  ): Promise<{ granted: boolean; organizationId: string | null }>;
 }
 
 export interface StoredSession {

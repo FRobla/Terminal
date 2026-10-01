@@ -54,6 +54,16 @@ describe("loadApiEnvironment", () => {
     expect(error.message).not.toContain("c2hvcnQ=");
   });
 
+  it("RBAC-AC-05: accepts a default member role outside production and rejects it in production", () => {
+    expect(loadApiEnvironment({ ...validEnvironment, DEFAULT_MEMBER_ROLE: "admin" }).DEFAULT_MEMBER_ROLE).toBe("admin");
+    expect(captureError({ ...validEnvironment, DEFAULT_MEMBER_ROLE: "owner" }).message).toContain(
+      "DEFAULT_MEMBER_ROLE",
+    );
+    expect(
+      captureError({ ...validEnvironment, APP_ENV: "production", DEFAULT_MEMBER_ROLE: "admin" }).message,
+    ).toContain("DEFAULT_MEMBER_ROLE: Automatic membership is not permitted when APP_ENV=production");
+  });
+
   it("requires a genesis hash for localnet", () => {
     const error = captureError({ ...validEnvironment, SOLANA_CLUSTER: "localnet" });
     expect(error.message).toContain("SOLANA_EXPECTED_GENESIS_HASH");

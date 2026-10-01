@@ -85,7 +85,7 @@ Every sensitive action produces an append-only audit event with actor, organizat
 
 | Control | Requirement | Iteration |
 | --- | --- | --- |
-| Content Security Policy | Nonce-based `script-src` with `'strict-dynamic'`, nonce-based `style-src`, `style-src-attr 'unsafe-inline'` (inline style attributes cannot execute script; used by React and Radix positioning), `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `connect-src 'self'` (the browser talks only to its own origin). Implemented in `apps/terminal/src/proxy.ts`. The API sends `default-src 'none'` | 01 |
+| Content Security Policy | Nonce-based `script-src` with `'strict-dynamic'`, nonce-based `style-src` (development only: `'unsafe-inline'` without a nonce, for Next.js hot-reload and overlay `<style>` elements), `style-src-attr 'unsafe-inline'` (inline style attributes cannot execute script; used by React and Radix positioning), `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `connect-src 'self'` (the browser talks only to its own origin). Implemented in `apps/terminal/src/proxy.ts`. The API sends `default-src 'none'` | 01 |
 | Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal; `@fastify/helmet` on the API | 01 |
 | CSRF | `SameSite=Strict` cookies + `Origin`/`Sec-Fetch-Site` verification + synchronizer token header (`X-CSRF-Token`) on every state-changing request | 01 |
 | CORS | Disabled (same-origin via Next.js rewrites); explicit allowlist only if a separate origin is ever required | 01 |

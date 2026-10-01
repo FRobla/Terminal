@@ -80,7 +80,7 @@ pnpm db:seed                      # permission catalog, system roles, default or
 pnpm dev                          # terminal :3000, api :4000, worker
 ```
 
-Open http://localhost:3000, connect your Devnet wallet, and sign in. The wallet set in `BOOTSTRAP_OWNER_WALLET_ADDRESS` becomes owner of the default organization on its first sign-in; other wallets can sign in but see no data until they are granted a role (organization management UI arrives in Iteration 08).
+Open http://localhost:3000, connect your Devnet wallet, and sign in. The wallet set in `BOOTSTRAP_OWNER_WALLET_ADDRESS` becomes owner of the default organization on its first sign-in; other wallets can sign in but see no data until they are granted a role (organization management UI arrives in Iteration 08). Until then, setting `DEFAULT_MEMBER_ROLE` (for example `admin`) grants that role to every new user outside production.
 
 Quality gates:
 

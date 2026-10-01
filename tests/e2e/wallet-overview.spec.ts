@@ -44,7 +44,10 @@ test.describe("wallet discovery", () => {
   test("WO-AC-15: an account without solana:devnet is blocked", async ({ page }) => {
     await withTestWallet(page, { walletChains: ["solana:devnet"], accountChains: ["solana:mainnet"] });
     await page.goto("/");
-    await page.getByRole("button", { name: /Connect SCT Test Wallet/ }).click();
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: /Connect SCT Test Wallet/ })
+      .click();
     await expect(page.getByText("This wallet account is not configured for Solana Devnet.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in with this wallet" })).toHaveCount(0);
   });
@@ -57,6 +60,22 @@ test.describe("sign-in and overview against Devnet", () => {
     await withTestWallet(page, { supportSignIn: true });
     await connectAndSignIn(page);
     await expect(page.getByText(/not a member of any organization/)).toBeVisible();
+  });
+
+  test("AUTH-AC-07: the status bar connect button connects and signs in in one action", async ({ page }) => {
+    await withTestWallet(page);
+    await page.goto("/system");
+    await page.getByRole("banner").getByRole("button", { name: "Connect SCT Test Wallet" }).click();
+    await expect(page.getByText("No organization")).toBeVisible();
+    await expect(page.getByText("Signed out")).toHaveCount(0);
+  });
+
+  test("AUTH-AC-07: without a Devnet wallet the status bar explains why sign-in is unavailable", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByText("No Devnet wallet detected.")).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("button")).toHaveCount(0);
   });
 
   test("AUTH-AC-02: the signMessage fallback also signs in", async ({ page }) => {
