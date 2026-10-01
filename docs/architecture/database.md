@@ -59,7 +59,8 @@ auth_challenges
   index(expires_at)  -- purged by a scheduled job
 
 sessions
-  id uuid pk, token_hash bytea unique not null, user_id fk users, active_organization_id fk null,
+  id uuid pk, token_hash bytea unique not null, user_id fk users, wallet_address text not null,
+  active_organization_id fk null,
   created_at, last_seen_at, expires_at, revoked_at null, ip_address inet null, user_agent text null
   index(user_id), index(expires_at)
 
@@ -72,7 +73,7 @@ audit_events                                 -- append-only (SPEC-008)
 
 provider_health_checks                       -- 1-minute snapshots (SPEC-006)
   id uuid pk, provider_id text not null, cluster cluster_enum not null, status provider_status_enum,
-  latency_p50_ms int null, latency_p95_ms int null, error_rate numeric(5,4) null,
+  latency_p50_ms int null, latency_p95_ms int null, error_rate numeric(5,4) null, request_count int not null,
   last_success_at null, last_failure_at null, last_failure_reason text null, checked_at not null
   index(provider_id, checked_at desc)
 ```

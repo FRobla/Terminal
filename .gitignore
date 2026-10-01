@@ -33,3 +33,7 @@ Thumbs.db
 # Local keypairs (never commit key material)
 *.keypair.json
 id.json
+
+# Generated
+next-env.d.ts
+*.tsbuildinfo

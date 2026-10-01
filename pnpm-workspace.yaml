@@ -1,0 +1,27 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Only these dependencies may run install lifecycle scripts (SECURITY.md §13).
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: false
+
+minimumReleaseAgeExclude:
+  - "@fastify/swagger@9.9.1"
+  - "@next/env@16.3.8"
+  - "@next/eslint-plugin-next@16.3.8"
+  - "@next/swc-darwin-arm64@16.3.8"
+  - "@next/swc-darwin-x64@16.3.8"
+  - "@next/swc-linux-arm64-gnu@16.3.8"
+  - "@next/swc-linux-arm64-musl@16.3.8"
+  - "@next/swc-linux-x64-gnu@16.3.8"
+  - "@next/swc-linux-x64-musl@16.3.8"
+  - "@next/swc-win32-arm64-msvc@16.3.8"
+  - "@next/swc-win32-x64-msvc@16.3.8"
+  - "@vitest/coverage-v8@5.0.3"
+  - "@vitest/mocker@5.0.3"
+  - "@vitest/spy@5.0.3"
+  - next@16.3.8
+  - vitest@5.0.3

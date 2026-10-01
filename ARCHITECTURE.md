@@ -1,6 +1,15 @@
 # Architecture
 
-Status: **Baseline (Iteration 00).** This document describes the intended architecture. Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
+Status: **As built through Iteration 01.** Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
+
+### As-built notes (Iteration 01)
+
+- **Packages.** In addition to the packages listed in §4, `packages/network` holds the pure cluster model (clusters, genesis hashes, Wallet Standard chains, explorer links, cluster verification) and `packages/providers` holds the outbound provider pipeline (token-bucket budgets, retries, timeouts, health store, provenance builders). Both exist to keep the dependency graph acyclic: `validation` and `config` depend on `network`; `solana` depends on `providers`.
+- **API layout.** `apps/api/src/{auth,audit,organizations,system,wallets}` plus `platform/` (error format, request context, envelope, unit of work). `services.ts` is the composition root; `server.ts` registers plugins and routes.
+- **Solana access.** `createSolanaRpc` from `@solana/kit` with per-call `AbortSignal`s, wrapped by `SolanaRpcClient` and four narrow readers. `@solana/kit-plugin-rpc` is deferred to Iteration 02 (transaction sending).
+- **Terminal wallet client.** `createClient().use(walletWithoutSigner({ chain }))` from `@solana/kit-plugin-wallet`; discovery lists only wallets that support the configured chain. No signer is attached in Iteration 01.
+- **Builds.** The terminal builds with Next.js (Turbopack). The API and worker build to self-contained ESM bundles with tsup (workspace packages ship TypeScript source).
+- **Toolchain.** TypeScript 6.0.3 (see changelog); Next.js 16 uses `proxy.ts` (formerly `middleware.ts`) for the per-request CSP nonce.
 
 Related: [SECURITY.md](./SECURITY.md) · [DATA_SOURCES.md](./DATA_SOURCES.md) · [API.md](./API.md) · [Domain model](./docs/architecture/domain-model.md) · [Database](./docs/architecture/database.md) · [ADRs](./docs/architecture/adr/README.md)
 
@@ -282,7 +291,7 @@ Mainnet requires: production RPC with SLAs, separate credentials, database, encr
 | [0002](./docs/architecture/adr/0002-screaming-architecture-and-layering.md) | Screaming architecture and layering | Accepted |
 | [0003](./docs/architecture/adr/0003-solana-kit-as-sdk.md) | `@solana/kit` as the Solana SDK | Accepted |
 | [0004](./docs/architecture/adr/0004-non-custodial-signing-first.md) | Non-custodial signing first; keychain boundary | Accepted |
-| [0005](./docs/architecture/adr/0005-authentication.md) | Authentication: Sign-In With Solana + server sessions | Proposed |
+| [0005](./docs/architecture/adr/0005-authentication.md) | Authentication: Sign-In With Solana + server sessions | Accepted |
 | [0006](./docs/architecture/adr/0006-postgresql-drizzle-supabase.md) | PostgreSQL, Drizzle, Supabase hosting | Accepted |
 | [0007](./docs/architecture/adr/0007-redis-bullmq-jobs.md) | Redis and BullMQ for cache, rate limits, and jobs | Accepted |
 | [0008](./docs/architecture/adr/0008-devnet-dex-strategy.md) | Devnet DEX strategy (Jupiter is Mainnet-only) | Proposed |
@@ -294,7 +303,7 @@ Mainnet requires: production RPC with SLAs, separate credentials, database, encr
 | --- | --- | --- |
 | Public Devnet RPC is rate-limited (100 req/10 s per IP, 40 req/10 s per method) | Wallet overview failures under load | Distributed rate limiter, caching with provenance, optional keyed fallback RPC, explicit `RPC_RATE_LIMITED` state |
 | Jupiter, DexScreener, pump.fun and most market/social data are Mainnet-only | DEX, valuation, and intelligence features have no Devnet data | ADR-0008 (Orca Whirlpools on Devnet), ADR-0009 (explicit valuation policy), capability status `UNAVAILABLE` on Devnet |
-| TypeScript 7 (native compiler) is the current stable major | Tooling incompatibility (Next.js, ESLint, Drizzle Kit) | Verify during Iteration 01; pin the newest version compatible with the whole toolchain and record the decision |
+| TypeScript 7 (native compiler) is the current stable major | Tooling incompatibility (Next.js, ESLint, Drizzle Kit) | Resolved in Iteration 01: pinned TypeScript 6.0.3; re-evaluate when typescript-eslint supports 7.x |
 | Kit plugin packages are pre-1.0 (`0.x`) | Breaking changes between minors | Exact pins via lockfile, thin wrappers in `packages/solana`, upgrade notes in changelog |
 | Solana CLI / `solana-test-validator` is not native on Windows | Localnet tests harder on Windows dev machines | Run the validator in WSL2 or Docker; Devnet remains the default |
 | X/Twitter and pump.fun lack free official read APIs | Social and new-token features may be unavailable | Capability status `UNAVAILABLE`; on-chain decoding of public program IDLs where possible |

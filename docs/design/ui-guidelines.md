@@ -19,7 +19,7 @@ Dark mode by default; grayscale first. Color only communicates financial or oper
 | `--border-strong` | Focus-adjacent separators | `#3a3a3a` |
 | `--text-primary` | Primary text | `#f2f2f2` |
 | `--text-secondary` | Secondary text | `#a3a3a3` |
-| `--text-muted` | Muted labels | `#6b6b6b` |
+| `--text-muted` | Muted labels | `#8a8a8a` (raised from `#6b6b6b` in Iteration 01 to meet 4.5:1 contrast on panels) |
 | `--positive` | Gains, success, confirmed | `#3fb950` |
 | `--negative` | Losses, failures | `#f85149` |
 | `--warning` | Stale data, degraded providers | `#d29922` |

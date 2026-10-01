@@ -24,17 +24,26 @@ Status: **Baseline (Iteration 00).** Testing strategy and conventions. Tooling i
 | Accessibility | Automated axe checks on key views; keyboard navigation flows | Playwright + axe-core | `tests/e2e/` | Every PR |
 | Security | Secret redaction in logs, headers/CSP presence, authorization matrix (every route × role) | Vitest / Playwright | `apps/api/src/**/security.test.ts` | Every push |
 
-## 3. Commands (available after Iteration 01)
+## 3. Commands
 
 ```bash
-pnpm test                # unit + integration + contract (Turborepo)
+pnpm test                # unit + integration (Vitest projects)
 pnpm test:unit
-pnpm test:integration    # requires `pnpm infra:up`
-pnpm test:e2e            # Playwright; starts apps against local infra
+pnpm test:integration    # requires `pnpm infra:up`; rebuilds the solana_terminal_test database
 pnpm test:devnet         # opt-in; hits https://api.devnet.solana.com
-pnpm test:localnet       # requires a running local validator (Iteration 02+)
+pnpm test:e2e            # builds the terminal, then Playwright starts API + terminal on 4000/3000
+pnpm check:bundle        # after a build: no test-only code in the terminal bundle
 pnpm coverage
 ```
+
+`pnpm test:localnet` arrives with Iteration 02.
+
+### As-built layout (Iteration 01)
+
+- Unit tests sit next to the code (`*.test.ts`). Integration tests sit next to the code as `*.integration.test.ts`; the API harness is `apps/api/test/harness.ts` (real PostgreSQL and Redis, stub JSON-RPC server for failure modes).
+- Devnet tests live in `tests/devnet/`. A public-RPC `429` makes a test **skip with an explicit reason** ("SKIPPED: public Devnet RPC rate limited"); it never passes silently.
+- End-to-end tests live in `tests/e2e/`. `tests/e2e/support.ts` injects the test wallet and grants roles directly in the test database (there is no admin UI until Iteration 08). UI rendering of provider failures uses test-only response interception; the API behavior for those failures is covered by integration tests.
+- Contract coverage: API responses are validated by the same Zod schemas the terminal uses, and `/api/v1/openapi.json` is generated from them (integration test).
 
 ## 4. Coverage targets
 

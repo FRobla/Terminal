@@ -19,7 +19,8 @@ The API is served by `apps/api` (Fastify). The terminal reaches it on the same o
 | Addresses / signatures | Base58 strings, validated server-side (`isAddress`, signature length) |
 | Cluster | Every Solana-related response includes `cluster` |
 | Request id | Clients may send `X-Request-Id` (UUID); the server generates one otherwise and always returns it in the header and `meta.requestId` |
-| Authentication | Session cookie (`__Host-sct_session`) — see [SECURITY.md](./SECURITY.md#5-authentication-and-sessions) |
+| Authentication | Session cookie: `__Host-sct_session` over HTTPS; `sct_session` (without `Secure`) when `PUBLIC_APP_ORIGIN` is plain HTTP in local development — see [SECURITY.md](./SECURITY.md#5-authentication-and-sessions) |
+| Origin | State-changing requests must carry `Origin` equal to `PUBLIC_APP_ORIGIN` (or `Sec-Fetch-Site: same-origin`), including public endpoints such as sign-in |
 | CSRF | `X-CSRF-Token` header required on `POST`, `PUT`, `PATCH`, `DELETE` |
 | Idempotency | `Idempotency-Key` header (UUID) required on side-effecting `POST` endpoints from Iteration 02 |
 | Pagination | Cursor-based: `?limit=<1..100>&cursor=<opaque>`; response `meta.nextCursor` |
@@ -120,6 +121,9 @@ Partial upstream failures inside an aggregate (e.g. token accounts unavailable w
 | `GET` | `/api/v1/system/readiness` | Public (no internals) | Readiness of PostgreSQL, Redis, and Solana cluster verification. Returns `503` when any dependency is not ready. |
 | `GET` | `/api/v1/system/network` | Public | Cluster identity: `cluster`, `expectedGenesisHash`, `observedGenesisHash`, `verified`, `verifiedAt`, `rpcProvider`, `solanaCoreVersion`. |
 | `GET` | `/api/v1/system/providers` | `system.read` | Provider health list ([SPEC-006](./docs/specs/SPEC-006-provider-health.md)). |
+| `GET` | `/api/v1/openapi.json` | Public, non-production only | OpenAPI document generated from the Zod contracts. |
+
+Readiness returns the body `{ status: "ready" | "not_ready", checks }` without the success envelope, so load balancers can read it directly.
 
 ### 4.2 Authentication ([SPEC-007](./docs/specs/SPEC-007-auth-and-rbac.md))
 
@@ -135,7 +139,7 @@ Partial upstream failures inside an aggregate (e.g. token accounts unavailable w
 | Method | Path | Permission | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/wallets/{address}/overview` | `wallet.read` | SOL balance, token accounts (SPL Token + Token-2022), recent signatures, each as `Sourced<T>`. Query: `signaturesLimit` (1–50, default 20). |
-| `POST` | `/api/v1/wallets/connections` | Session | Records a wallet connection event for the session (`address`, `walletName`, `walletChain`); audits `wallet.connected` or `wallet.connection_rejected` on cluster mismatch. |
+| `POST` | `/api/v1/wallets/connections` | Session | Body `{ address, walletName, walletChains[] }`. Returns `{ accepted, reason: "CLUSTER_MISMATCH" \| null, recordedAt }`; audits `wallet.connected` or `wallet.connection_rejected`. |
 
 Response shape (`GET /wallets/{address}/overview`):
 

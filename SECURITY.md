@@ -85,7 +85,7 @@ Every sensitive action produces an append-only audit event with actor, organizat
 
 | Control | Requirement | Iteration |
 | --- | --- | --- |
-| Content Security Policy | Nonce-based `script-src`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `connect-src` restricted to self and configured RPC/WebSocket origins | 01 |
+| Content Security Policy | Nonce-based `script-src` with `'strict-dynamic'`, nonce-based `style-src`, `style-src-attr 'unsafe-inline'` (inline style attributes cannot execute script; used by React and Radix positioning), `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `connect-src 'self'` (the browser talks only to its own origin). Implemented in `apps/terminal/src/proxy.ts`. The API sends `default-src 'none'` | 01 |
 | Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal; `@fastify/helmet` on the API | 01 |
 | CSRF | `SameSite=Strict` cookies + `Origin`/`Sec-Fetch-Site` verification + synchronizer token header (`X-CSRF-Token`) on every state-changing request | 01 |
 | CORS | Disabled (same-origin via Next.js rewrites); explicit allowlist only if a separate origin is ever required | 01 |
@@ -133,6 +133,9 @@ All external content is **untrusted**: API responses, token metadata (names, sym
 - New dependencies must pass the dependency policy (necessary, maintained, meaningful, not duplicated, acceptable risk and bundle cost).
 - pnpm settings: lifecycle scripts restricted to an allowlist (`onlyBuiltDependencies`).
 - Solana packages are verified to come from the official `@solana/*` and `@solana-program/*` scopes.
+- pnpm 12 enforces a minimum release age for newly published versions. Versions pinned at initialization that were younger than that window are listed explicitly under `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`; remove them at the next dependency update.
+- Accepted advisories (2026-09-30): two esbuild advisories reported by `pnpm audit` affect only esbuild's development server (`drizzle-kit` → `@esbuild-kit` → esbuild ≤ 0.24.2, moderate; `tsup` → esbuild 0.27.x on Windows, low). The project never runs esbuild's server; re-check on each dependency update. CI fails on high or critical advisories.
+- Source files must not contain invisible Unicode characters (bidirectional controls, zero-width characters); use explicit `\u` escapes. One such case was found and fixed in Iteration 01.
 
 ## 14. Vulnerability reporting
 

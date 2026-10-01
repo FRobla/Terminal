@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY |
+| Status | IMPLEMENTED |
 | Iteration | 01 |
 | Domain(s) | cross-cutting: monorepo, configuration, observability, database, jobs, CI |
 | Criteria prefix | `FND` |
@@ -120,4 +120,5 @@ Then the top-level folders are business domains (`wallets`, `system`, `auth`, `a
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01):** Status set to IMPLEMENTED. FND-AC-01..11 pass (see checklist test evidence); FND-AC-10 is verified locally and awaits its first run on GitHub runners.
+- **2026-09-30:** The cluster model lives in `packages/network` and outbound provider plumbing in `packages/providers` (two packages added to the §2 list) to avoid a dependency cycle between `solana`, `providers`, and `validation`.

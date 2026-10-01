@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY |
+| Status | IMPLEMENTED |
 | Iteration | 01 |
 | Domain(s) | cross-cutting (`packages/validation` contracts, domain value objects) |
 | Criteria prefix | `PRV` |
@@ -123,4 +123,4 @@ Unit tests for the builder functions, redaction, derived-value propagation, and 
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01):** Status set to IMPLEMENTED. `Sourced<T>` contracts live in `packages/validation`; builders (`available`, `unavailableFromProviderError`, `fromCache`) live in `packages/providers`. `DERIVED` values and `derivedFrom` are defined but first used in Iteration 03.

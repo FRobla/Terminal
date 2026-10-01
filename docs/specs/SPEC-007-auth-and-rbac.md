@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY for Iteration 01 foundation scope (pending confirmation of ADR-0005) |
+| Status | IMPLEMENTED (Iteration 01 foundation scope) |
 | Iteration | 01 (foundation), 08 (full organization management) |
 | Domain(s) | `auth`, `organizations`, `users`, `roles` |
 | Criteria prefix | `AUTH`, `RBAC` |
@@ -131,4 +131,6 @@ Then the user becomes `owner` of the default organization and `role.assigned` is
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01) — Local cookie name:** `__Host-` cookies require `Secure`, which browsers honor only over HTTPS. When `PUBLIC_APP_ORIGIN` uses `http:` (local development), the cookie is `sct_session` without `Secure`; over HTTPS it is `__Host-sct_session` with `Secure`.
+- **2026-09-30:** sessions also store the signed-in wallet address. Permission changes take effect on the next sign-in or after the ≤ 60 s permission cache expires.
+- **2026-09-30:** denied permission checks are audited as `authorization.denied` (AUD-AC-04).

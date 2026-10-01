@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY |
+| Status | IMPLEMENTED (Iteration 01 foundation scope) |
 | Iteration | 01 (foundation), extended by every later iteration |
 | Domain(s) | `audit` |
 | Criteria prefix | `AUD` |
@@ -82,4 +82,4 @@ Then only organization A's events are returned, newest first, paginated.
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01):** added the action `authorization.denied` (resource `route`, metadata `requiredPermission`, `route`). The application role also lacks `TRUNCATE` on `audit_events`.

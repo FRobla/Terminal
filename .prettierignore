@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+packages/database/migrations/meta
+**/.next
+**/dist
+**/coverage
+prompt.md
+**/*.md
+.dependency-cruiser.cjs

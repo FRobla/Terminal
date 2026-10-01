@@ -1,13 +1,13 @@
 # ADR-0005 — Authentication: Sign-In With Solana + Server Sessions
 
-Status: **Proposed** (requires owner confirmation before Iteration 01 item 1.8)
+Status: Accepted (confirmed by the owner on 2026-09-30)
 Date: 2026-09-30
 
 ## Context
 
 Users are people in organizations who operate wallets. Iteration 01 needs an authentication foundation so that audit events have an actor and authorization can be enforced. Options range from wallet-based sign-in to email/OIDC providers.
 
-## Decision (proposed)
+## Decision
 
 - Primary identity proof in the MVP: **Sign-In With Solana (SIWS)** via the Wallet Standard `solana:signIn` feature, with a `signMessage` fallback using an identical server-built message.
 - **Server-side sessions** owned by `apps/api` (opaque id, hashed in PostgreSQL, `__Host-` cookie, `SameSite=Strict`), not JWTs in browser storage.
@@ -26,6 +26,6 @@ Users are people in organizations who operate wallets. Iteration 01 needs an aut
 - A user who loses their sign-in wallet needs an administrator to link a new identity (Iteration 08 flow).
 - Corporate SSO requires a later ADR.
 
-## Open question for the owner
+## Resolution
 
-Confirm SIWS as the MVP authentication method, or choose an email/OIDC provider now.
+The owner confirmed SIWS as the MVP authentication method on 2026-09-30.

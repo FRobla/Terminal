@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY (Iteration 01 covers the Solana RPC provider) |
+| Status | IMPLEMENTED (Solana RPC provider) |
 | Iteration | 01 |
 | Domain(s) | `system` |
 | Criteria prefix | `PH` |
@@ -75,4 +75,5 @@ Then it shows `Provider unavailable` with the reason, not a fabricated or empty-
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01) — Small-sample rule:** error-rate thresholds apply only once the 5-minute window has at least 5 requests. Below that, 3 consecutive failures mean `UNAVAILABLE` and 1–2 consecutive failures mean `DEGRADED`. A provider with no requests in the window but a known last success or failure is `HEALTHY` unless another rule applies. Rationale: one failed call must not flip a lightly used provider to `UNAVAILABLE`.
+- **2026-09-30:** a `429` or an exhausted internal budget keeps the provider `RATE_LIMITED` for 60 s, or until the reported reset time.

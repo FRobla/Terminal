@@ -40,7 +40,7 @@ Key libraries observed on npm (2026-09-30), to be re-checked at install time:
 | `bullmq` / `ioredis` | 6.3.10 / 6.0.0 |
 | `pino` | 10.3.1 |
 | `turbo` | 2.11.5 |
-| `typescript` | 7.0.2 (toolchain compatibility must be verified — see ARCHITECTURE risks) |
+| `typescript` | 6.0.3 pinned (7.0.2 is the latest stable, but it ships no classic compiler API and typescript-eslint supports `<6.1.0`) |
 | `vitest` / `@playwright/test` | 5.0.3 / 1.63.0 |
 | `tailwindcss` | 4.3.3 |
 | `@tanstack/react-query` | 5.104.0 |
@@ -58,11 +58,12 @@ All variables are validated at startup by Zod schemas in `packages/config`. Inva
 | `SOLANA_CLUSTER` | yes | api, worker, terminal | `localnet`, `devnet`, `testnet`; `mainnet-beta` rejected in the MVP |
 | `SOLANA_RPC_URL` | yes | api, worker | HTTP JSON-RPC URL for the cluster |
 | `SOLANA_WS_URL` | no | api, worker | PubSub URL; derived from `SOLANA_RPC_URL` if omitted |
-| `SOLANA_RPC_FALLBACK_URL` | no | api, worker | Optional keyed fallback RPC (secret if it embeds a key) |
+| `SOLANA_RPC_FALLBACK_URL` | no | api, worker | Optional keyed fallback RPC (secret if it embeds a key). Parsed but not used until Iteration 02 |
 | `SOLANA_EXPECTED_GENESIS_HASH` | localnet only | api, worker | Required for `localnet`; built-in constants are used for public clusters |
 | `NEXT_PUBLIC_SOLANA_CLUSTER` | yes | terminal | Must equal `SOLANA_CLUSTER`; checked at build and at runtime against `/api/v1/system/network` |
 | `API_INTERNAL_URL` | yes | terminal | Server-side URL used by Next.js rewrites and Server Components (e.g. `http://localhost:4000`) |
 | `API_PORT` | yes | api | Listening port |
+| `API_HOST` | no | api | Bind address (default `127.0.0.1`; use `0.0.0.0` only inside containers) |
 | `PUBLIC_APP_ORIGIN` | yes | api, terminal | Canonical origin used for SIWS domain/URI and CSRF origin checks |
 | `DATABASE_URL` | yes | api, worker | PostgreSQL connection string (application role) |
 | `DATABASE_MIGRATION_URL` | migrations | scripts | Connection string for the migration role (DDL privileges) |
@@ -78,17 +79,21 @@ All variables are validated at startup by Zod schemas in `packages/config`. Inva
 | `JUPITER_API_KEY` | no (Iteration 03/04) | api, worker | Backend-only |
 | `HELIUS_API_KEY` | no | api, worker | Backend-only |
 
-## 4. Local setup (target, Iteration 01)
+## 4. Local setup
 
-1. Install Node.js 24 LTS and enable Corepack (`corepack enable`).
-2. `pnpm install`
-3. `cp .env.example .env` and fill in local values (generate secrets with `openssl rand -base64 32`).
-4. `pnpm infra:up` — Docker Compose (`infra/docker/compose.yaml`) starts:
-   - PostgreSQL (latest stable major) on `localhost:5432`, with separate migration and application roles;
-   - Redis (latest stable) on `localhost:6379`.
-5. `pnpm db:migrate` then `pnpm db:seed` (seeds **only** a local development organization and system roles — never financial data).
+1. Install Node.js 24 LTS. pnpm manages its own pinned version (`packageManager`), or use `corepack enable`.
+2. `pnpm install`. pnpm 12 enforces a minimum release age for new packages; the exact versions pinned at initialization are listed under `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` and should be removed from that list at the next dependency update. Build scripts are allowed only for packages under `allowBuilds`.
+3. `cp .env.example .env` and set `AUTH_SECRET` (`openssl rand -base64 32`) and `BOOTSTRAP_OWNER_WALLET_ADDRESS` (your Devnet wallet's public address).
+4. Start Docker Desktop, then `pnpm infra:up` — Docker Compose (`infra/docker/compose.yaml`) starts:
+   - PostgreSQL 18.6 on `127.0.0.1:5432` with the local-only roles `sct_migrator` (DDL) and `sct_app` (runtime) from `infra/docker/postgres/init/01-roles.sql`, plus a `solana_terminal_test` database;
+   - Redis 8.8.3 on `127.0.0.1:6379` (AOF persistence, `noeviction`).
+5. `pnpm db:migrate` then `pnpm db:seed` (seeds **only** the permission catalog, system roles, and a default organization — never financial data).
 6. `pnpm dev` — terminal on `http://localhost:3000`, API on `http://localhost:4000`, worker in the background.
-7. Configure your browser wallet for **Devnet** and connect.
+7. Switch your browser wallet to **Devnet**, connect, and sign in.
+
+Production-style local run: `pnpm build`, then `pnpm --filter @sct/api start`, `pnpm --filter @sct/worker start`, and `pnpm --filter @sct/terminal start`. The API and worker build to self-contained bundles (tsup) and `start` forces `NODE_ENV=production` (JSON logs, no pretty printer).
+
+Tests use the `solana_terminal_test` database and Redis logical database 1; the integration and e2e global setup rebuilds that database from the migrations. `pnpm test:e2e` starts its own API and terminal on ports 4000 and 3000, so stop `pnpm dev` first.
 
 Localnet (optional, Iteration 02+): run `solana-test-validator` in WSL2 or Docker; set `SOLANA_CLUSTER=localnet`, `SOLANA_RPC_URL=http://127.0.0.1:8899`, and `SOLANA_EXPECTED_GENESIS_HASH`.
 

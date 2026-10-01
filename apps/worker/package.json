@@ -1,0 +1,31 @@
+{
+  "name": "@sct/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "cross-env NODE_ENV=production node --enable-source-maps --env-file-if-exists=../../.env dist/main.js",
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@sct/config": "workspace:*",
+    "@sct/database": "workspace:*",
+    "@sct/observability": "workspace:*",
+    "@sct/providers": "workspace:*",
+    "@sct/solana": "workspace:*",
+    "bullmq": "6.3.10",
+    "ioredis": "6.0.0",
+    "@sct/network": "workspace:*",
+    "@sct/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "tsx": "4.23.15",
+    "@sct/testing": "workspace:*",
+    "postgres": "3.4.9",
+    "cross-env": "10.1.0"
+  }
+}

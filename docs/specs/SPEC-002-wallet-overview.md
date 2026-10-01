@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY |
+| Status | IMPLEMENTED |
 | Iteration | 01 |
 | Domain(s) | `wallets`, `network`, `auth`, `audit`, `system` |
 | Criteria prefix | `WO` |
@@ -211,4 +211,7 @@ Then it renders as inert plain text with those characters removed and is truncat
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01):** Status set to IMPLEMENTED. WO-AC-01..17 pass automated tests; the manual check with a third-party browser wallet is pending (checklist 1.14).
+- **2026-09-30 — WO-AC-01 clarification:** `@solana/kit-plugin-wallet` only discovers wallets that advertise the configured chain. A wallet without `solana:devnet` is therefore not listed, and the empty-state text reads "No Solana wallet supporting Devnet was detected. Install a Wallet Standard compatible wallet and enable Devnet." WO-AC-15 still applies to connected accounts whose own `chains` lack `solana:devnet`.
+- **2026-09-30 — Token account order:** amounts of different mints are not comparable without prices, so token accounts are ordered by token program, mint, and account address.
+- **2026-09-30 — Signed-in vs. connected wallet:** when the connected account differs from the signed-in wallet, the terminal shows the connected account's overview read-only and states that the accounts differ.

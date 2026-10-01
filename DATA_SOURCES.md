@@ -51,7 +51,9 @@ Devnet tokens have **no market**. Aggregators, price APIs, DEX analytics, pump.f
 | Reliability | Development-grade; not suitable for production. Occasional 429 and 5xx. Transaction history may be pruned. |
 | Fallback | Optional keyed RPC (e.g. Helius Devnet) via `SOLANA_RPC_FALLBACK_URL`; fallback use is recorded in provenance |
 | Verified identity | `getGenesisHash` = `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`; `getVersion` returned `solana-core 4.3.0` |
-| Last verified | 2026-09-30 (docs: solana.com/docs/references/clusters; live calls) |
+| Last verified | 2026-09-30 (docs: solana.com/docs/references/clusters; live calls; Iteration 01 adapter tests compare reader results with raw JSON-RPC calls) |
+| Observed behavior | 2026-09-30: HTTP 429 returned for `getTokenAccountsByOwner` after a burst of end-to-end and Devnet test runs from one IP; the adapter classified it as `RPC_RATE_LIMITED` and did not retry |
+| Adapter | `packages/solana` (`SolanaRpcClient`, `ClusterIdentityReader`, `SolBalanceReader`, `TokenAccountReader`, `SignatureHistoryReader`); provider id `solana-public-rpc` |
 
 ### 4.2 Solana public RPC — other clusters (identity reference only)
 

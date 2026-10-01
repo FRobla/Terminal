@@ -4,8 +4,7 @@ A corporate-grade operations, trading, and intelligence terminal for the Solana 
 
 The MVP targets **Solana Devnet only**. No real-money Mainnet operation is permitted during the MVP phase. The architecture is designed so that Mainnet can be introduced later through configuration and controlled infrastructure changes, never through a rewrite and never through a single environment variable.
 
-> **Project status:** Specification baseline complete (Iteration 00). No application code exists yet.
-> **Next:** Iteration 01 — Foundation and Wallet Overview vertical slice. See [checklist.md](./checklist.md).
+> **Project status:** Iteration 01 (Foundation and Wallet Overview vertical slice) is implemented and tested against the real Devnet RPC. It awaits two verifications: a manual run with a real browser wallet and the first CI run on GitHub. See [checklist.md](./checklist.md).
 
 ---
 
@@ -28,10 +27,12 @@ The MVP targets **Solana Devnet only**. No real-money Mainnet operation is permi
 │   └── worker/          BullMQ workers: sync, indexing, provider health, alerts
 ├── packages/
 │   ├── ui/              Accessible terminal-grade UI primitives (Radix-based)
-│   ├── database/        Drizzle schema, migrations, repositories' shared DB client
-│   ├── solana/          @solana/kit integration: cluster model, RPC adapters, address rules
+│   ├── database/        Drizzle schema, migrations, seed, shared DB client
+│   ├── network/         Pure cluster model: clusters, genesis hashes, wallet chains, explorer links
+│   ├── providers/       Outbound provider pipeline: budgets, retries, health, provenance builders
+│   ├── solana/          @solana/kit integration: RPC client and narrow on-chain readers
 │   ├── validation/      Zod API contracts shared by terminal and api
-│   ├── config/          Runtime environment schemas and cluster configuration
+│   ├── config/          Runtime environment schemas
 │   ├── observability/   Structured logging, request context, OpenTelemetry setup
 │   └── testing/         Test-only helpers and fixtures (never imported by runtime code)
 ├── docs/                Specifications, ADRs, domain model, threat model, UI guidelines
@@ -63,32 +64,34 @@ These files are read before any substantial change and updated after it.
 
 ## Getting started
 
-> These commands become valid once Iteration 01 is complete. Until then they describe the target developer experience.
-
-Prerequisites (see [OPERATIONS.md](./OPERATIONS.md#tooling-versions)):
+Prerequisites (see [OPERATIONS.md](./OPERATIONS.md#2-tooling-versions)):
 
 - Node.js 24 LTS
 - pnpm (exact version pinned through the `packageManager` field in `package.json`)
-- Docker (for local PostgreSQL and Redis)
-- A Wallet Standard compatible browser wallet configured for **Devnet**
+- Docker Desktop running (for local PostgreSQL and Redis)
+- A Wallet Standard compatible browser wallet (e.g. Phantom, Solflare, Backpack) switched to **Devnet**
 
 ```bash
 pnpm install
-cp .env.example .env              # then fill in local values; never commit .env
-pnpm infra:up                     # starts local PostgreSQL and Redis via Docker Compose
-pnpm db:migrate                   # applies committed migrations
-pnpm dev                          # runs terminal, api, and worker through Turborepo
+cp .env.example .env              # set AUTH_SECRET (openssl rand -base64 32) and BOOTSTRAP_OWNER_WALLET_ADDRESS
+pnpm infra:up                     # starts local PostgreSQL 18 and Redis 8 via Docker Compose
+pnpm db:migrate                   # applies committed migrations (migration role)
+pnpm db:seed                      # permission catalog, system roles, default organization
+pnpm dev                          # terminal :3000, api :4000, worker
 ```
+
+Open http://localhost:3000, connect your Devnet wallet, and sign in. The wallet set in `BOOTSTRAP_OWNER_WALLET_ADDRESS` becomes owner of the default organization on its first sign-in; other wallets can sign in but see no data until they are granted a role (organization management UI arrives in Iteration 08).
 
 Quality gates:
 
 ```bash
-pnpm lint
+pnpm format:check
+pnpm lint                         # ESLint + architecture boundaries (dependency-cruiser)
 pnpm typecheck
-pnpm test                         # unit + integration
-pnpm test:e2e                     # Playwright end-to-end
+pnpm test                         # unit + integration (needs `pnpm infra:up`)
 pnpm test:devnet                  # opt-in tests against the real Devnet RPC
-pnpm build
+pnpm test:e2e                     # builds the terminal, then Playwright (stop `pnpm dev` first)
+pnpm build && pnpm check:bundle   # production build and test-code leak check
 ```
 
 ## Development workflow

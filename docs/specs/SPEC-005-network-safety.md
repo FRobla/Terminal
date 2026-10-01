@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | READY |
+| Status | IMPLEMENTED |
 | Iteration | 01 |
 | Domain(s) | `network`, `system` |
 | Criteria prefix | `NET` |
@@ -85,4 +85,4 @@ Unit (config schema, explorer links, genesis comparison), integration (stub RPC 
 
 ## Amendments
 
-_None._
+- **2026-09-30 (Iteration 01):** Status set to IMPLEMENTED. `WALLET_STANDARD_CHAINS` were confirmed against `@solana/kit-plugin-wallet` 0.20.0. The worker probe also re-verifies the genesis hash every 5 minutes.
