@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { createdAt, primaryId, updatedAt } from "./columns";
 import { clusterEnum } from "./enums";
 
@@ -33,3 +33,14 @@ export const userWalletIdentities = pgTable(
     index("user_wallet_identities_user_id_idx").on(table.userId),
   ],
 );
+
+/** Per-user terminal preferences (SPEC-025), versioned configuration validated at the API boundary. */
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "restrict" }),
+  schemaVersion: integer("schema_version").notNull(),
+  preferences: jsonb("preferences").$type<Record<string, unknown>>().notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});

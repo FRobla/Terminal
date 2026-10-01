@@ -6,8 +6,10 @@ import { AddressText, Button, ErrorState, Panel } from "@sct/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSession } from "../auth/use-session";
+import { useExplorerLinks } from "../network/use-explorer-links";
 import { useNetworkIdentity } from "../network/use-network-identity";
 import { ApiRequestError } from "../platform/api-client";
+import { usePreferences } from "../preferences/preferences-provider";
 import { RecentTransactionsPanel, SolBalancePanel, TokenAccountsPanel } from "./overview-panels";
 import { useWalletOverview } from "./use-wallet-overview";
 import { TERMINAL_WALLET_CHAIN, useIsHydrated, useWalletClient } from "./wallet-client";
@@ -34,6 +36,8 @@ export function WalletOverviewView() {
   const [inputError, setInputError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { keyboardShortcuts } = usePreferences();
+  const explorer = useExplorerLinks();
 
   const connectedAddress =
     connected && connected.account.chains.includes(TERMINAL_WALLET_CHAIN) ? connected.account.address : null;
@@ -51,8 +55,9 @@ export function WalletOverviewView() {
     previousAddress.current = current;
   }, [connected, queryClient]);
 
-  // Keyboard: "/" focuses the address search, "r" refreshes.
+  // Keyboard: "/" focuses the address search, "r" refreshes — unless the user turned shortcuts off (SET-AC-06).
   useEffect(() => {
+    if (!keyboardShortcuts) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || isEditableTarget(event.target)) return;
       if (event.key === "/") {
@@ -64,7 +69,7 @@ export function WalletOverviewView() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [overview, target]);
+  }, [overview, target, keyboardShortcuts]);
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -88,8 +93,13 @@ export function WalletOverviewView() {
         <Panel title="Watch address">
           <form onSubmit={onSubmit} className="space-y-2" noValidate>
             <label htmlFor="watch-address" className="block text-[12px] text-text-secondary">
-              View the overview of any Devnet address (read-only). Press <kbd className="font-mono">/</kbd> to
-              focus.
+              View the overview of any Devnet address (read-only).
+              {keyboardShortcuts ? (
+                <>
+                  {" "}
+                  Press <kbd className="font-mono">/</kbd> to focus.
+                </>
+              ) : null}
             </label>
             <input
               id="watch-address"
@@ -148,12 +158,16 @@ export function WalletOverviewView() {
                 <span className="text-text-secondary">{watchAddress ? "Watching" : "Connected wallet"}</span>
                 <AddressText
                   value={target}
-                  href={overview.data?.explorerUrl}
+                  href={overview.data ? explorer.address(target) : undefined}
                   label={watchAddress ? "Watched address" : "Connected wallet"}
                 />
               </div>
-              <Button onClick={retry} disabled={refreshing} aria-keyshortcuts="r">
-                {refreshing ? "Refreshing…" : "Refresh (R)"}
+              <Button
+                onClick={retry}
+                disabled={refreshing}
+                aria-keyshortcuts={keyboardShortcuts ? "r" : undefined}
+              >
+                {refreshing ? "Refreshing…" : keyboardShortcuts ? "Refresh (R)" : "Refresh"}
               </Button>
             </div>
             {queryError ? (

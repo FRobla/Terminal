@@ -3,6 +3,7 @@ import type { Permission } from "@sct/validation";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AuditLog } from "../../audit/application/audit-log";
 import { ApiError } from "../../platform/api-error";
+import type { Actor } from "../application/actor";
 import type { AuthenticatedSession, SessionService } from "../application/session-service";
 import { isValidCsrfToken } from "../domain/session-token";
 
@@ -118,4 +119,22 @@ export function registerAccessControl(app: FastifyInstance, options: AccessContr
 export function requireSession(request: FastifyRequest): AuthenticatedSession {
   if (!request.auth) throw new ApiError("UNAUTHENTICATED");
   return request.auth;
+}
+
+/** The authenticated caller with client metadata, for application services that audit. */
+export function requireActor(request: FastifyRequest): Actor {
+  const session = requireSession(request);
+  return {
+    userId: session.userId,
+    sessionId: session.sessionId,
+    organizationId: session.organization?.id ?? null,
+    ...clientMetadata(request),
+  };
+}
+
+/** Like `requireActor`, for operations scoped to the active organization. */
+export function requireOrganizationActor(request: FastifyRequest): Actor & { organizationId: string } {
+  const actor = requireActor(request);
+  if (!actor.organizationId) throw new ApiError("FORBIDDEN");
+  return { ...actor, organizationId: actor.organizationId };
 }

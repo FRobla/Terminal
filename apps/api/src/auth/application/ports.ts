@@ -34,7 +34,7 @@ export interface IdentityStore {
     cluster: Cluster,
     at: Date,
     transaction: Transaction,
-  ): Promise<{ userId: string; displayName: string | null; created: boolean }>;
+  ): Promise<{ userId: string; displayName: string | null; status: "active" | "disabled"; created: boolean }>;
 }
 
 export interface OrganizationSummary {
@@ -95,4 +95,31 @@ export interface SessionStore {
 
 export interface SignatureVerifier {
   verify(address: string, message: Uint8Array, signature: Uint8Array): Promise<boolean>;
+}
+
+export interface ActiveSessionRecord {
+  id: string;
+  userId: string;
+  displayName: string | null;
+  walletAddress: string;
+  createdAt: Date;
+  lastSeenAt: Date;
+  expiresAt: Date;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+
+/** Active = not revoked, not past its absolute expiry, active since `idleSince`, and the user is not disabled. */
+export interface ActiveSessionCriteria {
+  now: Date;
+  idleSince: Date;
+  userId?: string | undefined;
+  sessionIds?: readonly string[] | undefined;
+  excludeSessionId?: string | undefined;
+}
+
+export interface SessionDirectory {
+  listActive(criteria: ActiveSessionCriteria & { limit: number }): Promise<ActiveSessionRecord[]>;
+  /** Revokes the matching active sessions and returns their ids. */
+  revokeActive(criteria: ActiveSessionCriteria, at: Date, transaction?: Transaction): Promise<string[]>;
 }

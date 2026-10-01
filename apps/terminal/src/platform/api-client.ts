@@ -1,4 +1,9 @@
-import { errorResponseSchema, successEnvelope, type ErrorCode } from "@sct/validation";
+import {
+  errorResponseSchema,
+  successEnvelope,
+  type ErrorCode,
+  type responseMetaSchema,
+} from "@sct/validation";
 import type { z } from "zod";
 
 /** A failed API call in the standard error format (API.md §3). */
@@ -14,6 +19,15 @@ export class ApiRequestError extends Error {
   }
 }
 
+interface RequestOptions {
+  method?: "GET" | "POST" | "PUT" | "PATCH";
+  body?: unknown;
+  csrfToken?: string | undefined;
+  signal?: AbortSignal;
+}
+
+type ResponseMeta = z.infer<typeof responseMetaSchema>;
+
 /**
  * Browser-side client for the same-origin API. Every success and error body is
  * validated at runtime; the terminal never trusts response shapes blindly.
@@ -21,13 +35,17 @@ export class ApiRequestError extends Error {
 export async function apiRequest<T extends z.ZodType>(
   path: string,
   dataSchema: T,
-  options: {
-    method?: "GET" | "POST";
-    body?: unknown;
-    csrfToken?: string | undefined;
-    signal?: AbortSignal;
-  } = {},
+  options: RequestOptions = {},
 ): Promise<z.infer<T>> {
+  return (await apiRequestWithMeta(path, dataSchema, options)).data;
+}
+
+/** Like `apiRequest`, also returning the envelope metadata (request id, pagination cursor). */
+export async function apiRequestWithMeta<T extends z.ZodType>(
+  path: string,
+  dataSchema: T,
+  options: RequestOptions = {},
+): Promise<{ data: z.infer<T>; meta: ResponseMeta }> {
   let response: Response;
   try {
     response = await fetch(`/api/v1${path}`, {
@@ -75,5 +93,5 @@ export async function apiRequest<T extends z.ZodType>(
       undefined,
     );
   }
-  return (parsed.data as { data: z.infer<T> }).data;
+  return parsed.data as { data: z.infer<T>; meta: ResponseMeta };
 }

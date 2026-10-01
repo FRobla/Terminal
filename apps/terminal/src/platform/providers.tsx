@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { PreferencesProvider } from "../preferences/preferences-provider";
 import { WalletClientProvider } from "../wallets/wallet-client";
 
 export function Providers(props: { children: ReactNode }) {
@@ -20,7 +21,9 @@ export function Providers(props: { children: ReactNode }) {
   );
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletClientProvider>{props.children}</WalletClientProvider>
+      <PreferencesProvider>
+        <WalletClientProvider>{props.children}</WalletClientProvider>
+      </PreferencesProvider>
     </QueryClientProvider>
   );
 }

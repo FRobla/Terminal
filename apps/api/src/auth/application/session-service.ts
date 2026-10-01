@@ -85,8 +85,10 @@ export class SessionService {
     await this.deps.sessions.revoke(sessionId, this.now());
   }
 
-  /** Drops cached permissions so role changes take effect immediately. */
-  invalidatePermissions(): void {
+  /** Drops cached permissions so role changes take effect immediately. Returns the number of entries dropped. */
+  invalidatePermissions(): number {
+    const size = this.permissionCache.size;
     this.permissionCache.clear();
+    return size;
   }
 }

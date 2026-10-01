@@ -27,6 +27,40 @@ export const AUDIT_ACTION_METADATA = {
     reason: z.string().max(200),
   }),
   "authorization.denied": z.object({ requiredPermission: z.string().max(64), route: z.string().max(200) }),
+  // SPEC-025 — user settings
+  "user.profile_updated": z.object({ fields: z.array(z.enum(["displayName"])).max(8) }),
+  "session.revoked": z.object({
+    targetUserId: z.uuid(),
+    scope: z.enum(["single", "others", "all"]),
+    reason: z.enum(["self service", "owner console", "account disabled"]),
+    count: z.number().int().nonnegative(),
+  }),
+  // SPEC-026 — owner console
+  "role.revoked": z.object({
+    roleKey: z.string().max(64),
+    targetUserId: z.uuid(),
+    reason: z.string().max(200),
+  }),
+  "member.suspended": z.object({ targetUserId: z.uuid() }),
+  "member.reactivated": z.object({ targetUserId: z.uuid() }),
+  "user.disabled": z.object({ targetUserId: z.uuid(), sessionsRevoked: z.number().int().nonnegative() }),
+  "user.enabled": z.object({ targetUserId: z.uuid() }),
+  "organization.updated": z.object({
+    fields: z.array(z.enum(["name"])).max(8),
+    previousName: z.string().max(100),
+    name: z.string().max(100),
+  }),
+  "announcement.updated": z.object({
+    enabled: z.boolean(),
+    severity: z.enum(["info", "warning", "critical"]),
+    messageLength: z.number().int().nonnegative(),
+  }),
+  "system.cluster_verification_requested": z.object({ verified: z.boolean() }),
+  "system.job_enqueued": z.object({ queue: z.string().max(128), jobName: z.string().max(128) }),
+  "system.cache_purged": z.object({
+    target: z.enum(["wallet-overview", "permissions"]),
+    keysDeleted: z.number().int().nonnegative(),
+  }),
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTION_METADATA;

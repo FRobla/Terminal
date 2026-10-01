@@ -44,6 +44,7 @@ pnpm coverage
 - Devnet tests live in `tests/devnet/`. A public-RPC `429` makes a test **skip with an explicit reason** ("SKIPPED: public Devnet RPC rate limited"); it never passes silently.
 - End-to-end tests live in `tests/e2e/`. `tests/e2e/support.ts` injects the test wallet and grants roles directly in the test database (there is no admin UI until Iteration 08). UI rendering of provider failures uses test-only response interception; the API behavior for those failures is covered by integration tests.
 - Contract coverage: API responses are validated by the same Zod schemas the terminal uses, and `/api/v1/openapi.json` is generated from them (integration test).
+- Iteration 01.5: `apps/api/src/users/settings.integration.test.ts` (SET-AC), `apps/api/src/organizations/owner-console.integration.test.ts` and `apps/api/src/system/owner-console-system.integration.test.ts` (OWN-AC, including a generated check that every `/admin` route is owner-only), and `tests/e2e/settings.spec.ts` (navigation, preferences applied across the terminal, console pages with axe checks, announcement banner). The harness exposes `callAs` and `currentSessionId`. The e2e API runs with `AUTH_RATE_LIMIT_PER_MINUTE=500` because the suite signs in more often than the production default allows.
 
 ## 4. Coverage targets
 

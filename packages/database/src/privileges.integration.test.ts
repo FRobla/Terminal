@@ -1,4 +1,5 @@
 import { integrationEnvironment } from "@sct/testing";
+import { PERMISSIONS } from "@sct/validation";
 import postgres from "postgres";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -13,7 +14,7 @@ describe("application database role", () => {
     const [{ count }] = (await app`select count(*)::int as count from permissions`) as unknown as [
       { count: number },
     ];
-    expect(count).toBe(19);
+    expect(count).toBe(PERMISSIONS.length);
     const roles = await app`select key from roles where organization_id is null order by key`;
     expect(roles.map((row) => row.key)).toEqual([
       "admin",
@@ -36,5 +37,14 @@ describe("application database role", () => {
     await expect(app`create table intruder (id int)`).rejects.toThrow(/permission denied/);
     await expect(app`drop table sessions`).rejects.toThrow(/must be owner|permission denied/);
     await expect(app`delete from permissions`).rejects.toThrow(/permission denied/);
+  });
+
+  it("OWN-AC-12: can read, but never change, the applied-migration log", async () => {
+    const applied = await app`select count(*)::int as count from drizzle.__drizzle_migrations`;
+    expect(applied[0]?.count).toBeGreaterThan(0);
+    await expect(app`delete from drizzle.__drizzle_migrations`).rejects.toThrow(/permission denied/);
+    await expect(
+      app`insert into drizzle.__drizzle_migrations (hash, created_at) values ('x', 0)`,
+    ).rejects.toThrow(/permission denied/);
   });
 });

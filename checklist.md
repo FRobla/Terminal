@@ -8,6 +8,94 @@ Status values: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `COMPLETE`
 
 # Current Iteration
 
+## Iteration 01.5 — User Settings and Owner Console
+
+Status: IN PROGRESS — implementation complete and tested; awaiting owner verification in a real browser (started and implemented 2026-10-01, owner request)
+
+Goal:
+Give every signed-in user a Settings section to manage their profile, functional usability preferences, and sessions; give the owner a console inside Settings to operate the platform at administrator and developer level (people and access, sessions, audit log, organization, announcement, runtime and infrastructure state, jobs, developer tooling), with real data only.
+
+Inserted between Iteration 01 and 02 at the owner's request. It brings forward, for the owner only, part of Iteration 08 (membership management, audit viewer); teams, invitations, custom roles, ownership transfer, and API credentials stay in Iteration 08.
+
+Specifications:
+- [SPEC-025 User settings](./docs/specs/SPEC-025-user-settings.md)
+- [SPEC-026 Owner console](./docs/specs/SPEC-026-owner-console.md)
+- Amendments (2026-10-01): SPEC-002 (refresh preference, explorer, time zone), SPEC-005 (explorer choice), SPEC-007 (`platform.administer`, disabled accounts, configurable sign-in limit), SPEC-008 (new audit actions)
+
+Acceptance Criteria (summary; full criteria in the specs):
+- Every signed-in user has `Settings` with Profile, Preferences, and Sessions (SET-AC-01..03, 07..09).
+- Preferences persist per user server-side, are read tolerantly, and change real behavior: time zone, density, reduced motion, explorer, overview refresh (≥ 30 s or off), shortcuts, address display (SET-AC-04..06).
+- Only the owner (`platform.administer`) sees and can call the console; `admin` is refused and audited (OWN-AC-01).
+- The console shows live counters, members, sessions, audit log, organization and role matrix, announcement, runtime facts without secrets, cluster re-verification, provider history, queues, and the route catalog, and its state changes are audited and reversible (OWN-AC-02..16).
+
+Dependencies:
+- Iteration 01 foundation (sessions, RBAC, audit, provider health snapshots, worker queue).
+- `pnpm db:migrate && pnpm db:seed` on every environment (two new tables, migration-log read grant, new permission).
+
+Risks:
+- Platform-wide views (all users, all sessions) are correct for the single default organization; when several organizations exist, a platform-operator role distinct from organization owner is needed (Iteration 08).
+- The permission cache is per API process: role, membership, and account changes apply immediately in the process that handled them and within 60 s elsewhere (SPEC-007 §7).
+
+Verification:
+- Unit, integration, and e2e tests reference SET-AC and OWN-AC ids (evidence below).
+- Owner check in a real browser: sign in as the bootstrap owner, open Settings → Owner console, and exercise each section.
+
+### Work breakdown
+
+#### 1.5.1 Specifications
+- [x] SPEC-025 User settings and SPEC-026 Owner console with numbered acceptance criteria
+- [x] Dated amendments to SPEC-002, SPEC-005, SPEC-007, SPEC-008
+
+#### 1.5.2 Contracts, configuration, and data
+- [x] `platform.administer` (owner only); `admin` holds every other permission; `OPERATION_NOT_ALLOWED` and `ACCOUNT_DISABLED` error codes
+- [x] Zod contracts: profile, preferences (versioned, tolerant reader), session listings, members, organization, role matrix, announcement, overview, runtime, provider history, queues, route catalog, cache purge
+- [x] Migrations `0002` (`user_preferences`, `platform_settings`) and `0003` (read-only access to the migration log)
+- [x] Queue names shared through `@sct/config`; `AUTH_RATE_LIMIT_PER_MINUTE` (default 20)
+
+#### 1.5.3 API
+- [x] `/me/profile`, `/me/preferences`, `/me/sessions` (+ revoke one / others), `/announcements/current`
+- [x] `/admin/overview`, `/admin/users` (+ role, membership, status, revoke sessions), `/admin/sessions` (+ revoke), `/admin/organization`, `/admin/roles`, `/admin/announcement`
+- [x] `/admin/system/runtime`, `/admin/system/cluster/verify`, `/admin/system/provider-history`, `/admin/jobs` (+ run probe), `/admin/developer/routes`, `/admin/developer/cache/purge`
+- [x] Protection rule (self, owners, no ownership grants), audit events for every change, disabled accounts refused at sign-in
+
+#### 1.5.4 Terminal
+- [x] `Settings` navigation entry, settings frame with Personal and Owner console groups
+- [x] Profile, Preferences, Sessions views; preferences applied globally (density, motion, time zone, address display, explorer links, refresh interval, shortcuts)
+- [x] Owner console: Overview, Members, Sessions, Audit log, Organization (+ role matrix), Announcement (+ preview), System, Jobs, Developer
+- [x] Announcement banner under the status bar; display name in the status bar
+- [x] Accessible confirmations for sensitive actions, focusable scroll regions, loading/empty/error/unavailable states
+
+#### 1.5.5 Tests and documentation
+- [x] Unit, integration, and e2e tests mapped to SET-AC / OWN-AC
+- [x] API.md, ARCHITECTURE.md, SECURITY.md, OPERATIONS.md, TESTING.md, database design, spec index, changelog
+- [ ] Owner verification in a real browser with a Devnet wallet
+- [ ] Mark iteration COMPLETE — after owner verification
+
+### Test evidence (2026-10-01)
+
+| Suite | Result |
+| --- | --- |
+| Unit (`pnpm test:unit`) | 74 passed |
+| Integration (`pnpm test:integration`: PostgreSQL + Redis + stub RPC) | 65 passed |
+| End-to-end (Chromium desktop + mobile, real Devnet RPC; run on ports 3100/4100 because local dev servers held 3000/4000) | 24 passed |
+| Lint, boundaries, typecheck, format, build, bundle check | Passing |
+
+### Self-review (prompt §111, 2026-10-01)
+
+**Architecture.** New code lives in domain folders (`users`, `announcements`, `developer`, and extensions of `auth`, `organizations`, `system`); application services depend on ports; the protection rule is a pure domain function. dependency-cruiser passes.
+
+**Security.** Owner-only routes are enforced in the API (generated test over every `/admin` route) and denials are audited. No secret reaches a response (tested by scanning the runtime response). User-supplied text (display names, organization name, announcement) is validated against control and format characters and rendered as text. Sensitive actions are reversible and confirmed in the UI.
+
+**Data.** Every console figure comes from PostgreSQL, Redis, BullMQ, the API process, or the RPC; an unreadable dependency renders `DATA UNAVAILABLE` with a reason. Preferences only change presentation.
+
+**Testing.** Every SET-AC and OWN-AC criterion has a test; the e2e suite runs axe on the new pages (it found and drove a fix for unfocusable scroll regions).
+
+**Documentation.** Specs, amendments, API, architecture, security, operations, testing, and database docs updated.
+
+**UX.** Loading states name the operation; empty states state what is true; errors show request ids; console navigation appears only for the owner.
+
+---
+
 ## Iteration 01 — Foundation and Wallet Overview Vertical Slice
 
 Status: IN PROGRESS — implementation complete and tested; awaiting owner verification with a real browser wallet and the first CI run (started 2026-09-30)

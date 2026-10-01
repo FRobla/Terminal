@@ -55,13 +55,26 @@ describe("loadApiEnvironment", () => {
   });
 
   it("RBAC-AC-05: accepts a default member role outside production and rejects it in production", () => {
-    expect(loadApiEnvironment({ ...validEnvironment, DEFAULT_MEMBER_ROLE: "admin" }).DEFAULT_MEMBER_ROLE).toBe("admin");
+    expect(
+      loadApiEnvironment({ ...validEnvironment, DEFAULT_MEMBER_ROLE: "admin" }).DEFAULT_MEMBER_ROLE,
+    ).toBe("admin");
     expect(captureError({ ...validEnvironment, DEFAULT_MEMBER_ROLE: "owner" }).message).toContain(
       "DEFAULT_MEMBER_ROLE",
     );
     expect(
       captureError({ ...validEnvironment, APP_ENV: "production", DEFAULT_MEMBER_ROLE: "admin" }).message,
     ).toContain("DEFAULT_MEMBER_ROLE: Automatic membership is not permitted when APP_ENV=production");
+  });
+
+  it("SECURITY §8: the sign-in rate limit defaults to 20 per minute and stays within bounds", () => {
+    expect(loadApiEnvironment(validEnvironment).AUTH_RATE_LIMIT_PER_MINUTE).toBe(20);
+    expect(
+      loadApiEnvironment({ ...validEnvironment, AUTH_RATE_LIMIT_PER_MINUTE: "500" })
+        .AUTH_RATE_LIMIT_PER_MINUTE,
+    ).toBe(500);
+    expect(captureError({ ...validEnvironment, AUTH_RATE_LIMIT_PER_MINUTE: "0" }).message).toContain(
+      "AUTH_RATE_LIMIT_PER_MINUTE",
+    );
   });
 
   it("requires a genesis hash for localnet", () => {

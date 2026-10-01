@@ -30,7 +30,9 @@ async function main(): Promise<void> {
   const database = createDatabase(env.DATABASE_URL);
 
   const services = createApiServices(env, { redis, database, logger });
-  const app = await buildServer(services);
+  const app = await buildServer(services, {
+    authRateLimit: { max: env.AUTH_RATE_LIMIT_PER_MINUTE, timeWindowMs: 60_000 },
+  });
   services.clusterVerification.start();
 
   let shuttingDown = false;
@@ -40,6 +42,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, "Shutting down API");
     services.clusterVerification.stop();
     await app.close();
+    await services.close();
     await Promise.allSettled([redis.quit(), database.close(), tracing.shutdown()]);
     process.exit(0);
   };

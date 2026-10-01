@@ -29,4 +29,22 @@ export function createDatabase(url: string, options: { maxConnections?: number }
   };
 }
 
-export { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+export {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  max,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
+export { COMMITTED_MIGRATIONS } from "./migration-journal";

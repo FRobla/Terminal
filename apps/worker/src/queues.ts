@@ -1,9 +1,8 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
 import type { Logger } from "@sct/observability";
 import { newRequestContext, runWithRequestContext } from "@sct/observability";
+import { PROVIDER_HEALTH_PROBE_JOB, PROVIDER_HEALTH_QUEUE, PROVIDER_HEALTH_SCHEDULER_ID } from "@sct/config";
 import { PROBE_INTERVAL_MS, type ProviderHealthProbe } from "./system/provider-health-probe";
-
-export const PROVIDER_HEALTH_QUEUE = "system.provider-health";
 
 /**
  * Registers queues and repeatable schedules (ARCHITECTURE.md §13). Each queue has
@@ -21,9 +20,9 @@ export async function startQueues(options: {
     defaultJobOptions: { removeOnComplete: 100, removeOnFail: 500, attempts: 1 },
   });
   await providerHealthQueue.upsertJobScheduler(
-    "solana-rpc-probe",
+    PROVIDER_HEALTH_SCHEDULER_ID,
     { every: PROBE_INTERVAL_MS },
-    { name: "probe-solana-rpc", data: {} },
+    { name: PROVIDER_HEALTH_PROBE_JOB, data: {} },
   );
 
   const providerHealthWorker = new Worker(

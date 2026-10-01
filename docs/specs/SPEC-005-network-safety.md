@@ -86,3 +86,4 @@ Unit (config schema, explorer links, genesis comparison), integration (stub RPC 
 ## Amendments
 
 - **2026-09-30 (Iteration 01):** Status set to IMPLEMENTED. `WALLET_STANDARD_CHAINS` were confirmed against `@solana/kit-plugin-wallet` 0.20.0. The worker probe also re-verifies the genesis hash every 5 minutes.
+- **2026-10-01 (Iteration 01.5) — Explorer choice (SPEC-025):** users may choose Solana Explorer or Solscan. NET-AC-07 holds for both: every link carries the cluster parameter; localnet always uses Solana Explorer with the local RPC because Solscan cannot show a local validator.

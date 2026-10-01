@@ -23,8 +23,12 @@ export const apiEnvironmentSchema = runtimeSchema
     ENCRYPTION_KEY: optionalString(base64Secret(32)),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(604800).default(43200),
     SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().min(60).max(86400).default(1800),
+    /** Sign-in requests (challenge and verify) per client per minute (SECURITY.md §8). */
+    AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(5).max(1000).default(20),
     BOOTSTRAP_OWNER_WALLET_ADDRESS: optionalString(z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)),
-    DEFAULT_MEMBER_ROLE: optionalString(z.enum(["admin", "operator", "trader", "analyst", "auditor", "viewer"])),
+    DEFAULT_MEMBER_ROLE: optionalString(
+      z.enum(["admin", "operator", "trader", "analyst", "auditor", "viewer"]),
+    ),
   })
   .superRefine(requireLocalnetGenesis)
   .superRefine((value, ctx) => {

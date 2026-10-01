@@ -1,5 +1,6 @@
 import type { UnavailableInfo } from "@sct/validation";
 import { Button } from "./button";
+import { Timestamp } from "./display-settings";
 import { formatAge } from "./freshness";
 
 const REASON_LABELS: Record<UnavailableInfo["reason"], string> = {
@@ -32,7 +33,7 @@ export function DataUnavailable(props: { info: UnavailableInfo; onRetry?: () => 
         <dt>Source</dt>
         <dd className="font-mono">{info.source}</dd>
         <dt>Last successful retrieval</dt>
-        <dd className="font-mono">{lastSuccess ? new Date(lastSuccess).toLocaleString() : "Never"}</dd>
+        <dd className="font-mono">{lastSuccess ? <Timestamp value={lastSuccess} /> : "Never"}</dd>
         <dt>Retry</dt>
         <dd>
           {info.retry.retryable

@@ -40,7 +40,10 @@ export function useSignOut() {
     mutationFn: (csrfToken: string) =>
       apiRequest("/auth/logout", z.object({ loggedOut: z.literal(true) }), { method: "POST", csrfToken }),
     onSettled: async () => {
-      queryClient.removeQueries({ queryKey: ["wallets"] });
+      // Nothing from the previous session may leak into the next one.
+      for (const queryKey of [["wallets"], ["me"], ["admin"], ["announcements"]]) {
+        queryClient.removeQueries({ queryKey });
+      }
       await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
     },
   });

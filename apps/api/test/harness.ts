@@ -25,6 +25,8 @@ const DYNAMIC_TABLES = [
   "membership_roles",
   "organization_memberships",
   "user_wallet_identities",
+  "user_preferences",
+  "platform_settings",
   "users",
   "provider_health_checks",
 ];
@@ -161,6 +163,7 @@ export async function createTestApi(options: TestApiOptions = {}) {
     async close() {
       services.clusterVerification.stop();
       await app.close();
+      await services.close();
       await stub.close();
       await redis.quit();
       await database.close();
@@ -169,3 +172,36 @@ export async function createTestApi(options: TestApiOptions = {}) {
 }
 
 export type TestApi = Awaited<ReturnType<typeof createTestApi>>;
+
+export type TestSession = Awaited<ReturnType<TestApi["signIn"]>>;
+
+/** Calls an API route as a signed-in session (or anonymously), adding the origin and CSRF token. */
+export function callAs(
+  testApi: TestApi,
+  session: TestSession | null,
+  method: "GET" | "POST" | "PUT" | "PATCH",
+  url: string,
+  payload?: unknown,
+) {
+  return testApi.app.inject({
+    method,
+    url: `/api/v1${url}`,
+    ...(session ? { cookies: session.cookies } : {}),
+    headers: {
+      origin: TEST_ORIGIN,
+      ...(session && method !== "GET" ? { "x-csrf-token": session.csrfToken } : {}),
+    },
+    ...(payload !== undefined ? { payload: payload as Record<string, unknown> } : {}),
+  });
+}
+
+/** The id of the given session, as listed by `/me/sessions`. */
+export async function currentSessionId(testApi: TestApi, session: TestSession): Promise<string> {
+  const sessions = (await callAs(testApi, session, "GET", "/me/sessions")).json().data as Array<{
+    id: string;
+    current: boolean;
+  }>;
+  const current = sessions.find((entry) => entry.current);
+  if (!current) throw new Error("No current session listed");
+  return current.id;
+}

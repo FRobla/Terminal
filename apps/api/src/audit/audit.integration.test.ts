@@ -57,6 +57,27 @@ describe("audit log", () => {
         reason: "r",
       },
       "authorization.denied": { requiredPermission: "wallet.read", route: "GET /x" },
+      "user.profile_updated": { fields: ["displayName"] },
+      "session.revoked": {
+        targetUserId: "01a0f3c3-0000-7000-8000-000000000000",
+        scope: "single",
+        reason: "self service",
+        count: 1,
+      },
+      "role.revoked": {
+        roleKey: "viewer",
+        targetUserId: "01a0f3c3-0000-7000-8000-000000000000",
+        reason: "r",
+      },
+      "member.suspended": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000" },
+      "member.reactivated": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000" },
+      "user.disabled": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000", sessionsRevoked: 0 },
+      "user.enabled": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000" },
+      "organization.updated": { fields: ["name"], previousName: "a", name: "b" },
+      "announcement.updated": { enabled: true, severity: "info", messageLength: 3 },
+      "system.cluster_verification_requested": { verified: true },
+      "system.job_enqueued": { queue: "q", jobName: "j" },
+      "system.cache_purged": { target: "permissions", keysDeleted: 0 },
     };
     for (const action of Object.keys(AUDIT_ACTION_METADATA) as AuditAction[]) {
       await api.services.audit.record({

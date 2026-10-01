@@ -1,3 +1,19 @@
 @import "tailwindcss";
 @import "@sct/ui/styles.css";
 @source "../../../../packages/ui/src";
+
+/* SET-AC-06 — user preferences applied by PreferencesProvider on <html>. Unlayered, so they win over utilities. */
+html[data-density="comfortable"] body {
+  font-size: 14px;
+}
+html[data-density="comfortable"] table th,
+html[data-density="comfortable"] table td {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+}

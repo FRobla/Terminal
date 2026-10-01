@@ -51,6 +51,8 @@ export default defineConfig({
         DATABASE_URL: TEST_DATABASE_URL,
         REDIS_URL: TEST_REDIS_URL,
         AUTH_SECRET: randomBytes(32).toString("base64"),
+        // The suite signs in far more often than a person; the production default stays 20.
+        AUTH_RATE_LIMIT_PER_MINUTE: "500",
         LOG_LEVEL: "warn",
       },
     },

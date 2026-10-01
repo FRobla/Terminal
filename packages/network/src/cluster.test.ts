@@ -44,4 +44,16 @@ describe("explorer links", () => {
     );
     expect(explorerAddressUrl("localnet", "a")).toContain("cluster=custom");
   });
+
+  it("SET-AC-06: Solscan links carry the cluster; localnet always falls back to Solana Explorer", () => {
+    expect(explorerAddressUrl("devnet", "11111111111111111111111111111111", "solscan")).toBe(
+      "https://solscan.io/account/11111111111111111111111111111111?cluster=devnet",
+    );
+    expect(explorerTransactionUrl("devnet", "sig", "solscan")).toBe(
+      "https://solscan.io/tx/sig?cluster=devnet",
+    );
+    expect(explorerAddressUrl("localnet", "a", "solscan")).toMatch(
+      /^https:\/\/explorer\.solana\.com\/address\/a\?cluster=custom/,
+    );
+  });
 });

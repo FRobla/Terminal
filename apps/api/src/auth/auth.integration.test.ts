@@ -240,6 +240,7 @@ describe("RBAC", () => {
       { url: (address: string) => `/api/v1/wallets/${address}/overview`, permission: "wallet.read" },
       { url: () => "/api/v1/system/providers", permission: "system.read" },
       { url: () => "/api/v1/audit/events", permission: "audit.read" },
+      { url: () => "/api/v1/admin/overview", permission: "platform.administer" },
     ] as const;
     api.stub.setHandler("getBalance", { kind: "result", result: { context: { slot: 1 }, value: 0 } });
     api.stub.setHandler("getTokenAccountsByOwner", {
@@ -350,6 +351,9 @@ describe("RBAC", () => {
       "SELECT metadata FROM audit_events WHERE action = 'role.assigned'",
     );
     expect(assigned).toHaveLength(2);
-    expect(assigned.map((row) => row.metadata.reason).sort()).toEqual(["bootstrap owner", "default member role"]);
+    expect(assigned.map((row) => row.metadata.reason).sort()).toEqual([
+      "bootstrap owner",
+      "default member role",
+    ]);
   });
 });

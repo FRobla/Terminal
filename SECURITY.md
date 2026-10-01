@@ -74,12 +74,14 @@ Details: [SPEC-005](./docs/specs/SPEC-005-network-safety.md).
 - Authorization happens in the API for every protected operation, scoped to the active organization. Frontend checks are UX only.
 - Application wallet roles (Creator, Funder, Controller, Viewer) are distinct from Solana protocol authorities (mint, freeze, update, …) and are never conflated.
 - Role and permission changes are audited.
+- **Owner-only administration (Iteration 01.5).** `platform.administer` gates every `/api/v1/admin/*` route (the owner console, SPEC-026) and is held only by the `owner` role; `admin` holds every other permission. Console actions never target the caller or another owner, never grant ownership, and are reversible (suspend, disable, revoke) rather than destructive. Disabling an account revokes its sessions and blocks new sign-ins (`ACCOUNT_DISABLED`).
+- **Self-service (Iteration 01.5).** `/api/v1/me/*` routes act only on the session's own user; another user's session id is reported as not found.
 
 Full permission catalog: [SPEC-007](./docs/specs/SPEC-007-auth-and-rbac.md).
 
 ## 7. Audit logging
 
-Every sensitive action produces an append-only audit event with actor, organization, action, resource, resource id, timestamp, request id, IP and user agent where appropriate, result, and sanitized metadata. Audit metadata never contains secrets. The application database role has no `UPDATE` or `DELETE` privilege on the audit table. Details: [SPEC-008](./docs/specs/SPEC-008-audit-logging.md).
+Every sensitive action produces an append-only audit event with actor, organization, action, resource, resource id, timestamp, request id, IP and user agent where appropriate, result, and sanitized metadata. Audit metadata never contains secrets. The application database role has no `UPDATE` or `DELETE` privilege on the audit table. Details: [SPEC-008](./docs/specs/SPEC-008-audit-logging.md). Iteration 01.5 adds profile, session, membership, account, organization, announcement, and system-maintenance actions (SPEC-008 amendment 2026-10-01).
 
 ## 8. Web application security
 
@@ -92,7 +94,7 @@ Every sensitive action produces an append-only audit event with actor, organizat
 | Input validation | Zod schema on every request (params, query, body, headers used); unknown keys rejected | 01 |
 | Output validation | Zod schema on every response; database models never exposed directly | 01 |
 | Output encoding | React escaping; no `dangerouslySetInnerHTML` with external content; external URLs rendered as non-clickable text unless allowlisted scheme (`https:`) and marked as external | 01 |
-| Rate limiting | `@fastify/rate-limit` backed by Redis, per session and per IP; stricter limits on auth endpoints | 01 |
+| Rate limiting | `@fastify/rate-limit` backed by Redis, per session and per IP; stricter limits on auth endpoints (`AUTH_RATE_LIMIT_PER_MINUTE`, default 20); owner-console actions that reach the RPC are limited to 6 per minute | 01 / 01.5 |
 | Error handling | Consistent error format; no stack traces, SQL, credentials, provider keys, or internal hostnames in responses | 01 |
 | Idempotency | `Idempotency-Key` on side-effecting endpoints | 02 |
 

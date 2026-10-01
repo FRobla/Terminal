@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   "audit.read",
   "system.read",
   "system.manage",
+  "platform.administer",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -43,14 +44,21 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   "audit.read": "View the audit log",
   "system.read": "View system and provider health",
   "system.manage": "Manage providers and system settings",
+  "platform.administer": "Operate the owner console: platform administration and developer tooling",
 };
 
 const ALL: readonly Permission[] = PERMISSIONS;
 
+/** Permissions reserved for the owner role (SPEC-026 §3). */
+export const OWNER_ONLY_PERMISSIONS: readonly Permission[] = ["platform.administer"];
+
 /** Seeded system roles (SPEC-007 §6). */
 export const SYSTEM_ROLES = {
   owner: { name: "Owner", permissions: ALL },
-  admin: { name: "Administrator", permissions: ALL },
+  admin: {
+    name: "Administrator",
+    permissions: ALL.filter((permission) => !OWNER_ONLY_PERMISSIONS.includes(permission)),
+  },
   operator: {
     name: "Operator",
     permissions: [
@@ -112,3 +120,7 @@ export const SYSTEM_ROLES = {
 } as const satisfies Record<string, { name: string; permissions: readonly Permission[] }>;
 
 export type SystemRoleKey = keyof typeof SYSTEM_ROLES;
+
+/** Roles the owner console can grant; ownership is never granted there (SPEC-026 §3). */
+export const ASSIGNABLE_ROLE_KEYS = ["admin", "operator", "trader", "analyst", "auditor", "viewer"] as const;
+export type AssignableRoleKey = (typeof ASSIGNABLE_ROLE_KEYS)[number];

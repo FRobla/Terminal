@@ -1,7 +1,8 @@
 "use client";
 
 import type { RecentTransaction, TokenAccount, WalletOverview } from "@sct/validation";
-import { AddressText, EmptyState } from "@sct/ui";
+import { AddressText, EmptyState, Timestamp } from "@sct/ui";
+import { useExplorerLinks } from "../network/use-explorer-links";
 import { SourcedPanel } from "./sourced-panel";
 
 const MEMO_DISPLAY_LIMIT = 256;
@@ -45,6 +46,7 @@ export function SolBalancePanel(props: PanelProps) {
 }
 
 function TokenAccountRows(props: { accounts: TokenAccount[] }) {
+  const explorer = useExplorerLinks();
   if (props.accounts.length === 0) {
     return <EmptyState>No token accounts found for this wallet on Devnet.</EmptyState>;
   }
@@ -78,7 +80,7 @@ function TokenAccountRows(props: { accounts: TokenAccount[] }) {
           {props.accounts.map((account) => (
             <tr key={account.tokenAccount} className="border-b border-border/60 last:border-0">
               <td className="py-1 pr-3">
-                <AddressText value={account.mint} label="Mint" />
+                <AddressText value={account.mint} href={explorer.address(account.mint)} label="Mint" />
               </td>
               <td className="py-1 pr-3 font-mono text-text-secondary">{account.tokenProgram}</td>
               <td className="py-1 pr-3 text-right font-mono tabular">
@@ -93,7 +95,11 @@ function TokenAccountRows(props: { accounts: TokenAccount[] }) {
                 {account.state}
               </td>
               <td className="py-1">
-                <AddressText value={account.tokenAccount} label="Token account" />
+                <AddressText
+                  value={account.tokenAccount}
+                  href={explorer.address(account.tokenAccount)}
+                  label="Token account"
+                />
               </td>
             </tr>
           ))}
@@ -104,8 +110,8 @@ function TokenAccountRows(props: { accounts: TokenAccount[] }) {
           <li key={account.tokenAccount} className="border-b border-border/60 pb-2 last:border-0">
             <p className="font-mono tabular">{formatExact(account.uiAmount, account.decimals)}</p>
             <p className="text-[11px] text-text-secondary">
-              Mint <AddressText value={account.mint} label="Mint" /> · {account.tokenProgram} ·{" "}
-              {account.state}
+              Mint <AddressText value={account.mint} href={explorer.address(account.mint)} label="Mint" /> ·{" "}
+              {account.tokenProgram} · {account.state}
             </p>
           </li>
         ))}
@@ -143,6 +149,7 @@ function Memo(props: { memo: string | null }) {
 }
 
 function TransactionRows(props: { transactions: RecentTransaction[] }) {
+  const explorer = useExplorerLinks();
   if (props.transactions.length === 0) {
     return <EmptyState>No indexed transactions are available for this wallet.</EmptyState>;
   }
@@ -159,7 +166,7 @@ function TransactionRows(props: { transactions: RecentTransaction[] }) {
               Slot
             </th>
             <th scope="col" className="py-1 pr-3 font-medium">
-              Block time (UTC)
+              Block time
             </th>
             <th scope="col" className="py-1 pr-3 font-medium">
               Status
@@ -173,15 +180,17 @@ function TransactionRows(props: { transactions: RecentTransaction[] }) {
           {props.transactions.map((transaction) => (
             <tr key={transaction.signature} className="border-b border-border/60 last:border-0">
               <td className="py-1 pr-3">
-                <AddressText value={transaction.signature} href={transaction.explorerUrl} label="Signature" />
+                <AddressText
+                  value={transaction.signature}
+                  href={explorer.transaction(transaction.signature)}
+                  label="Signature"
+                />
               </td>
               <td className="py-1 pr-3 text-right font-mono tabular text-text-secondary">
                 {transaction.slot}
               </td>
               <td className="py-1 pr-3 font-mono text-text-secondary">
-                {transaction.blockTime
-                  ? transaction.blockTime.replace("T", " ").replace(".000Z", "")
-                  : "Unknown"}
+                {transaction.blockTime ? <Timestamp value={transaction.blockTime} /> : "Unknown"}
               </td>
               <td
                 className={`py-1 pr-3 ${transaction.status === "failed" ? "text-negative" : "text-text-primary"}`}
@@ -201,11 +210,16 @@ function TransactionRows(props: { transactions: RecentTransaction[] }) {
       <ul className="space-y-2 md:hidden">
         {props.transactions.map((transaction) => (
           <li key={transaction.signature} className="border-b border-border/60 pb-2 last:border-0">
-            <AddressText value={transaction.signature} href={transaction.explorerUrl} label="Signature" />
+            <AddressText
+              value={transaction.signature}
+              href={explorer.transaction(transaction.signature)}
+              label="Signature"
+            />
             <p
               className={`text-[11px] ${transaction.status === "failed" ? "text-negative" : "text-text-secondary"}`}
             >
-              {transaction.status} · slot {transaction.slot} · {transaction.blockTime ?? "Unknown time"}
+              {transaction.status} · slot {transaction.slot} ·{" "}
+              {transaction.blockTime ? <Timestamp value={transaction.blockTime} /> : "Unknown time"}
             </p>
           </li>
         ))}

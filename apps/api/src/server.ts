@@ -11,13 +11,19 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
+import { announcementRoutes } from "./announcements/http/announcement-routes";
 import { auditRoutes } from "./audit/http/audit-routes";
 import { registerAccessControl } from "./auth/http/access-control";
 import { authRoutes } from "./auth/http/auth-routes";
+import { sessionRoutes } from "./auth/http/session-routes";
+import { developerRoutes } from "./developer/http/developer-routes";
+import { adminOrganizationRoutes } from "./organizations/http/admin-organization-routes";
 import { registerErrorHandling } from "./platform/error-handler";
 import { registerRequestContext } from "./platform/request-context";
 import type { ApiServices } from "./services";
+import { adminSystemRoutes } from "./system/http/admin-system-routes";
 import { systemRoutes } from "./system/http/system-routes";
+import { meRoutes } from "./users/http/me-routes";
 import { walletRoutes } from "./wallets/http/wallet-routes";
 
 export const API_PREFIX = "/api/v1";
@@ -64,6 +70,11 @@ export async function buildServer(services: ApiServices, options: ServerOptions 
     },
   });
 
+  // OWN-AC-16: every route is recorded with its declared access as it registers.
+  app.addHook("onRoute", (route) =>
+    services.routeCatalog.record(route.method, route.url, route.config?.access),
+  );
+
   registerAccessControl(app, {
     sessions: services.sessions,
     audit: services.audit,
@@ -89,9 +100,7 @@ export async function buildServer(services: ApiServices, options: ServerOptions 
         primaryRpcProvider: services.primaryRpcProvider,
         health: services.health,
         pingDatabase: services.database.ping,
-        pingRedis: async () => {
-          await services.redis.ping();
-        },
+        pingRedis: services.pingRedis,
       });
       await api.register(authRoutes, {
         signIn: services.signIn,
@@ -107,6 +116,24 @@ export async function buildServer(services: ApiServices, options: ServerOptions 
         audit: services.audit,
       });
       await api.register(auditRoutes, { reader: services.auditRepository });
+      await api.register(meRoutes, { profiles: services.profiles, preferences: services.preferences });
+      await api.register(sessionRoutes, { sessions: services.sessionAdministration });
+      await api.register(announcementRoutes, { announcements: services.announcements });
+      await api.register(adminOrganizationRoutes, {
+        members: services.memberAdministration,
+        organization: services.organizationAdministration,
+      });
+      await api.register(adminSystemRoutes, {
+        overview: services.platformOverview,
+        runtime: services.runtimeInspection,
+        administration: services.systemAdministration,
+        providerHistory: services.providerHistory,
+        providerHealthQueue: services.providerHealthQueue,
+      });
+      await api.register(developerRoutes, {
+        catalog: services.routeCatalog,
+        caches: services.cacheMaintenance,
+      });
 
       if (exposeOpenApi) {
         api.get("/openapi.json", { config: { access: { public: true } }, schema: { hide: true } }, async () =>

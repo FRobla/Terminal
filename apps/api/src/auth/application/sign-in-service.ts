@@ -31,9 +31,11 @@ export interface ClientMetadata {
   userAgent: string | null;
 }
 
+export type SignInFailureCode = "SIWS_CHALLENGE_INVALID" | "SIWS_SIGNATURE_INVALID" | "ACCOUNT_DISABLED";
+
 export type VerifySignInResult =
   | { ok: true; sessionToken: string; sessionId: string; expiresAt: Date; userId: string }
-  | { ok: false; code: "SIWS_CHALLENGE_INVALID" | "SIWS_SIGNATURE_INVALID"; reason: string };
+  | { ok: false; code: SignInFailureCode; reason: string };
 
 /** Sign-In With Solana (SPEC-007 §3). */
 export class SignInService {
@@ -97,7 +99,7 @@ export class SignInService {
   ): Promise<VerifySignInResult> {
     const now = this.now();
     return this.deps.unitOfWork.run(async (transaction) => {
-      const fail = async (code: "SIWS_CHALLENGE_INVALID" | "SIWS_SIGNATURE_INVALID", reason: string) => {
+      const fail = async (code: SignInFailureCode, reason: string) => {
         await this.deps.audit.record(
           {
             action: "user.login_failed",
@@ -147,6 +149,8 @@ export class SignInService {
         now,
         transaction,
       );
+      // OWN-AC-07: a disabled account cannot start new sessions.
+      if (identity.status === "disabled") return fail("ACCOUNT_DISABLED", "account disabled");
 
       if (this.config.bootstrapOwnerWalletAddress === request.address) {
         const bootstrap = await this.deps.memberships.grantBootstrapOwnerIfUnowned(

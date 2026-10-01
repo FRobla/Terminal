@@ -78,6 +78,19 @@ provider_health_checks                       -- 1-minute snapshots (SPEC-006)
   index(provider_id, checked_at desc)
 ```
 
+## 3b. Iteration 01.5 additions
+
+```
+user_preferences                             -- SPEC-025, one row per user
+  user_id uuid pk fk users, schema_version int not null, preferences jsonb not null, created_at, updated_at
+
+platform_settings                            -- SPEC-026, keyed platform configuration (e.g. 'announcement')
+  key text pk, schema_version int not null, value jsonb not null,
+  updated_by_user_id fk users null, created_at, updated_at
+```
+
+Both JSON columns are versioned configuration, validated by Zod at the API boundary; preferences are read tolerantly (unknown keys dropped, invalid values replaced by defaults). Migration `0003_console_migration_visibility` grants `sct_app` `USAGE` on schema `drizzle` and `SELECT` on `drizzle.__drizzle_migrations` so the owner console can compare applied and committed migrations; the role cannot change that table.
+
 ## 4. Planned tables
 
 | Iteration | Tables |

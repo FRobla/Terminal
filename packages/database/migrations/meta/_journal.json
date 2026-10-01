@@ -15,6 +15,20 @@
       "when": 1790795621615,
       "tag": "0001_application_role_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790848365870,
+      "tag": "0002_settings_and_owner_console",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790848371209,
+      "tag": "0003_console_migration_visibility",
+      "breakpoints": true
     }
   ]
 }

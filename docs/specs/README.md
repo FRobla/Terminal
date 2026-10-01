@@ -31,6 +31,8 @@ Each spec defines a prefix (e.g. `WO` for Wallet Overview). Criteria are numbere
 | [SPEC-006](./SPEC-006-provider-health.md) | Provider health and capability status | `PH` | 01 | IMPLEMENTED (RPC) |
 | [SPEC-007](./SPEC-007-auth-and-rbac.md) | Authentication and RBAC | `AUTH` / `RBAC` | 01 (foundation) / 08 | IMPLEMENTED (foundation) |
 | [SPEC-008](./SPEC-008-audit-logging.md) | Audit logging | `AUD` | 01 | IMPLEMENTED (foundation) |
+| [SPEC-025](./SPEC-025-user-settings.md) | User settings | `SET` | 01.5 | IMPLEMENTED |
+| [SPEC-026](./SPEC-026-owner-console.md) | Owner console | `OWN` | 01.5 | IMPLEMENTED |
 
 ## Definition of Done
 

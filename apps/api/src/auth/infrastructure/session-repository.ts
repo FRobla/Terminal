@@ -1,7 +1,27 @@
-import { eq, schema, type Database } from "@sct/database";
-import type { SessionStore, StoredSession, Transaction } from "../application/ports";
+import { and, desc, eq, gt, inArray, isNull, ne, schema, type Database } from "@sct/database";
+import type {
+  ActiveSessionCriteria,
+  ActiveSessionRecord,
+  SessionDirectory,
+  SessionStore,
+  StoredSession,
+  Transaction,
+} from "../application/ports";
 
-export class SessionRepository implements SessionStore {
+function activeConditions(criteria: ActiveSessionCriteria) {
+  const table = schema.sessions;
+  const conditions = [
+    isNull(table.revokedAt),
+    gt(table.expiresAt, criteria.now),
+    gt(table.lastSeenAt, criteria.idleSince),
+  ];
+  if (criteria.userId) conditions.push(eq(table.userId, criteria.userId));
+  if (criteria.sessionIds) conditions.push(inArray(table.id, [...criteria.sessionIds]));
+  if (criteria.excludeSessionId) conditions.push(ne(table.id, criteria.excludeSessionId));
+  return conditions;
+}
+
+export class SessionRepository implements SessionStore, SessionDirectory {
   constructor(private readonly db: Database) {}
 
   async create(session: Parameters<SessionStore["create"]>[0], transaction: Transaction): Promise<string> {
@@ -43,5 +63,40 @@ export class SessionRepository implements SessionStore {
 
   async revoke(sessionId: string, at: Date): Promise<void> {
     await this.db.update(schema.sessions).set({ revokedAt: at }).where(eq(schema.sessions.id, sessionId));
+  }
+
+  async listActive(criteria: ActiveSessionCriteria & { limit: number }): Promise<ActiveSessionRecord[]> {
+    const table = schema.sessions;
+    return this.db
+      .select({
+        id: table.id,
+        userId: table.userId,
+        displayName: schema.users.displayName,
+        walletAddress: table.walletAddress,
+        createdAt: table.createdAt,
+        lastSeenAt: table.lastSeenAt,
+        expiresAt: table.expiresAt,
+        ipAddress: table.ipAddress,
+        userAgent: table.userAgent,
+      })
+      .from(table)
+      .innerJoin(schema.users, eq(schema.users.id, table.userId))
+      .where(and(eq(schema.users.status, "active"), ...activeConditions(criteria)))
+      .orderBy(desc(table.lastSeenAt), desc(table.id))
+      .limit(criteria.limit);
+  }
+
+  async revokeActive(
+    criteria: ActiveSessionCriteria,
+    at: Date,
+    transaction?: Transaction,
+  ): Promise<string[]> {
+    const executor = (transaction as Database | undefined) ?? this.db;
+    const rows = await executor
+      .update(schema.sessions)
+      .set({ revokedAt: at })
+      .where(and(...activeConditions(criteria)))
+      .returning({ id: schema.sessions.id });
+    return rows.map((row) => row.id);
   }
 }

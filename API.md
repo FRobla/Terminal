@@ -99,8 +99,10 @@ Responses never include stack traces, SQL, secrets, database or provider credent
 | `CSRF_TOKEN_INVALID` | 403 | Missing or invalid CSRF token / origin |
 | `SIWS_CHALLENGE_INVALID` | 400 | Challenge unknown, expired, or already used |
 | `SIWS_SIGNATURE_INVALID` | 401 | Sign-in signature verification failed |
+| `ACCOUNT_DISABLED` | 403 | The account was disabled by the owner; sign-in is refused |
 | `NOT_FOUND` | 404 | Resource not found (domain-specific codes such as `WALLET_NOT_FOUND` from Iteration 02) |
 | `IDEMPOTENCY_CONFLICT` | 409 | Same key reused with a different payload |
+| `OPERATION_NOT_ALLOWED` | 409 | The operation is refused for this target; `details.reason` is `SELF`, `OWNER_PROTECTED`, `NOT_A_MEMBER`, or `CURRENT_SESSION` |
 | `RATE_LIMITED` | 429 | Client exceeded API rate limit; `Retry-After` header set |
 | `RPC_UNAVAILABLE` | 503 | Solana RPC unreachable or failing |
 | `RPC_RATE_LIMITED` | 503 | Upstream RPC rate limit reached; retry later |
@@ -111,7 +113,7 @@ Responses never include stack traces, SQL, secrets, database or provider credent
 
 Partial upstream failures inside an aggregate (e.g. token accounts unavailable while the balance is available) are **not** errors: the endpoint returns `200` with per-field `Sourced<T>` status.
 
-## 4. Endpoints — Iteration 01
+## 4. Endpoints — Iterations 01 and 01.5
 
 ### 4.1 System
 
@@ -170,6 +172,48 @@ data: {
 | Method | Path | Permission | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/audit/events` | `audit.read` | Paginated audit events for the active organization; filters `action`, `actorId`, `resourceType`, `from`, `to`. |
+
+### 4.5 User settings ([SPEC-025](./docs/specs/SPEC-025-user-settings.md))
+
+Every route acts on the session's own user.
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/me/profile` | Session | User, sign-in wallet identities, active organization, roles, effective permissions |
+| `PATCH` | `/api/v1/me/profile` | Session | Body `{ displayName: string \| null }` (1–64 characters, no control or format characters). Audits `user.profile_updated` |
+| `GET` | `/api/v1/me/preferences` | Session | Effective preferences (stored values merged over defaults) |
+| `PUT` | `/api/v1/me/preferences` | Session | Complete preferences object: `timeZone` (`local`/`utc`), `density`, `reduceMotion`, `explorer` (`solana-explorer`/`solscan`), `overviewRefreshSeconds` (0, 30, 60, 120), `keyboardShortcuts`, `addressDisplay` |
+| `GET` | `/api/v1/me/sessions` | Session | The caller's active sessions; `current: true` marks the calling session |
+| `POST` | `/api/v1/me/sessions/{sessionId}/revoke` | Session | Revokes one other session. Current session → `409 OPERATION_NOT_ALLOWED`; another user's → `404` |
+| `POST` | `/api/v1/me/sessions/revoke-others` | Session | Revokes every other session; returns `{ revoked }` |
+| `GET` | `/api/v1/announcements/current` | Session | The platform announcement, or `null` |
+
+### 4.6 Owner console ([SPEC-026](./docs/specs/SPEC-026-owner-console.md))
+
+Every route requires `platform.administer` (held only by `owner`). Member actions apply to the active organization and refuse the caller and owners (`OPERATION_NOT_ALLOWED`).
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/overview` | Users, members, roles, active sessions, audit outcomes (24 h, active organization plus platform-level events), readiness, cluster, providers, last worker snapshot |
+| `GET` | `/api/v1/admin/users` | Users with identities, membership, roles, active sessions, last activity, `protectedReason`. Cursor pagination (`limit` ≤ 100, `cursor` = last user id) |
+| `PUT` | `/api/v1/admin/users/{userId}/role` | `{ roleKey }` — one of `admin`, `operator`, `trader`, `analyst`, `auditor`, `viewer`; replaces existing roles, creates or reactivates the membership. Audits `role.revoked` / `role.assigned` |
+| `PUT` | `/api/v1/admin/users/{userId}/membership` | `{ status: active \| suspended }`. Audits `member.suspended` / `member.reactivated` |
+| `PUT` | `/api/v1/admin/users/{userId}/status` | `{ status: active \| disabled }`; disabling revokes every session. Audits `user.disabled` / `user.enabled` |
+| `POST` | `/api/v1/admin/users/{userId}/sessions/revoke` | Revokes all of the user's sessions |
+| `GET` | `/api/v1/admin/sessions` | Active sessions platform-wide (≤ 500), with user, wallet, IP address, user agent |
+| `POST` | `/api/v1/admin/sessions/{sessionId}/revoke` | Revokes one session (not the caller's current one) |
+| `GET` / `PATCH` | `/api/v1/admin/organization` | Organization with member counts / `{ name }` (1–100 characters). Audits `organization.updated` |
+| `GET` | `/api/v1/admin/roles` | Permission catalog and role matrix from the database, with active member counts |
+| `PUT` | `/api/v1/admin/announcement` | `{ enabled, severity: info \| warning \| critical, message }` (≤ 500 characters, plain text). Audits `announcement.updated` |
+| `GET` | `/api/v1/admin/system/runtime` | Allowlisted configuration (redacted RPC endpoint, no secrets), API process facts, PostgreSQL and Redis facts — each dependency section is `AVAILABLE` (with `latencyMs`) or `UNAVAILABLE` (with `reason`, `source`) |
+| `POST` | `/api/v1/admin/system/cluster/verify` | Re-verifies the genesis hash now (6/min). Audits `system.cluster_verification_requested` |
+| `GET` | `/api/v1/admin/system/provider-history` | Worker health snapshots, newest first. Query `providerId`, `limit` (≤ 500, default 60) |
+| `GET` | `/api/v1/admin/jobs` | BullMQ queue state: workers, counts, schedulers, recent completed and failed jobs |
+| `POST` | `/api/v1/admin/jobs/provider-health/run` | Enqueues one provider health probe (6/min). Audits `system.job_enqueued` |
+| `GET` | `/api/v1/admin/developer/routes` | Every registered route with method, path, and access (`public`, `session`, or permission) |
+| `POST` | `/api/v1/admin/developer/cache/purge` | `{ target: wallet-overview \| permissions }`; returns `{ keysDeleted }`. Audits `system.cache_purged` |
+
+The owner's audit log viewer uses `GET /api/v1/audit/events` (§4.4).
 
 ## 5. Planned endpoints
 

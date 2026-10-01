@@ -283,6 +283,9 @@ importers:
       '@solana/kit':
         specifier: 8.4.0
         version: 8.4.0(typescript@6.0.3)
+      bullmq:
+        specifier: 6.3.10
+        version: 6.3.10(ioredis@6.0.0(supports-color@7.2.0))
       fastify:
         specifier: 5.12.5
         version: 5.12.5

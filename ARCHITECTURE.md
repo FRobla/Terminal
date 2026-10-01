@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **As built through Iteration 01.** Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
+Status: **As built through Iteration 01.5.** Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
 
 ### As-built notes (Iteration 01)
 
@@ -10,6 +10,13 @@ Status: **As built through Iteration 01.** Sections marked *(planned)* are not y
 - **Terminal wallet client.** `createClient().use(walletWithoutSigner({ chain }))` from `@solana/kit-plugin-wallet`; discovery lists only wallets that support the configured chain. No signer is attached in Iteration 01.
 - **Builds.** The terminal builds with Next.js (Turbopack). The API and worker build to self-contained ESM bundles with tsup (workspace packages ship TypeScript source).
 - **Toolchain.** TypeScript 6.0.3 (see changelog); Next.js 16 uses `proxy.ts` (formerly `middleware.ts`) for the per-request CSP nonce.
+
+### As-built notes (Iteration 01.5 — Settings and owner console)
+
+- **API domains.** `users/` (profile and preferences), `auth/` gains session administration (`SessionAdministration`, `/me/sessions`, `/admin/sessions`) and an `Actor` value used for audit fields, `organizations/` gains member and organization administration with the pure protection rule in `organizations/domain/member-protection.ts`, `announcements/` stores the platform banner in `platform_settings`, `system/` gains the owner overview, runtime inspection (PostgreSQL catalogs, Redis `INFO`), provider history, and BullMQ queue inspection, and `developer/` holds the route catalog (filled by an `onRoute` hook) and cache maintenance.
+- **Queue names** live in `@sct/config` (`queues.ts`) because the worker owns the schedules and the API inspects and enqueues. The API uses BullMQ with its shared Redis connection, created on first use.
+- **Terminal.** `preferences/` loads the user's preferences once and applies them: `<html data-density|data-reduce-motion>`, a `DisplaySettingsProvider` from `@sct/ui` (time zone, address display, explorer name) honored by `Timestamp`, `AddressText`, `DataUnavailable`, and provenance, client-built explorer links (`network/use-explorer-links.ts`), the overview refresh interval, and shortcuts. `settings/` holds the personal sections; `console/` the owner console; `announcements/` the banner under the status bar. Routes live under `app/settings/**`.
+- **Authorization.** Console routes declare `platform.administer`; the terminal hides the console for everyone else (UX only).
 
 Related: [SECURITY.md](./SECURITY.md) · [DATA_SOURCES.md](./DATA_SOURCES.md) · [API.md](./API.md) · [Domain model](./docs/architecture/domain-model.md) · [Database](./docs/architecture/database.md) · [ADRs](./docs/architecture/adr/README.md)
 
@@ -140,9 +147,11 @@ Rules:
 | `tokens` | Token metadata, authority visualization | Both | 05 |
 | `intelligence` | Structured facts, derived metrics, versioned models, relationship graph | Both | 06 / 09 |
 | `alerts`, `notifications` | Rule evaluation, in-app notifications | Off-chain | 07 |
+| `users` (settings) | Profile, preferences | Off-chain | 01.5 |
+| `announcements` | Platform-wide banner set by the owner | Off-chain | 01.5 |
 | `watchlists` | User-curated sets of wallets/tokens | Off-chain | 07 |
 | `social-intelligence` | Social providers where legally and technically available | Off-chain (external) | 09 |
-| `developer` | Developer tooling, API credentials | Off-chain | 08+ |
+| `developer` | Developer tooling (route catalog, cache maintenance in 01.5), API credentials (08+) | Off-chain | 01.5 / 08+ |
 
 Detailed entities and value objects: [docs/architecture/domain-model.md](./docs/architecture/domain-model.md).
 

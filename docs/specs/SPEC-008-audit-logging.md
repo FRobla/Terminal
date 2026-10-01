@@ -83,3 +83,4 @@ Then only organization A's events are returned, newest first, paginated.
 ## Amendments
 
 - **2026-09-30 (Iteration 01):** added the action `authorization.denied` (resource `route`, metadata `requiredPermission`, `route`). The application role also lacks `TRUNCATE` on `audit_events`.
+- **2026-10-01 (Iteration 01.5):** added actions (with metadata schemas) for user settings (SPEC-025) and the owner console (SPEC-026): `user.profile_updated`, `session.revoked`, `role.revoked`, `member.suspended`, `member.reactivated`, `user.disabled`, `user.enabled`, `organization.updated`, `announcement.updated`, `system.cluster_verification_requested`, `system.job_enqueued`, `system.cache_purged`. `role.revoked` and `organization.updated` move forward from Iteration 08. The audit log viewer for AUD-AC-05 is now available to the owner in the console (OWN-AC-09).

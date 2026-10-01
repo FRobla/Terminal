@@ -6,6 +6,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versio
 
 ## [Unreleased]
 
+### Added — Iteration 01.5: User Settings and Owner Console
+- `Settings` for every signed-in user (SPEC-025): Profile (display name, sign-in wallets, organization, roles, effective permissions), Preferences, and Sessions (list active sessions, revoke one or all others).
+- Server-side, per-user preferences that change real behavior: timestamp time zone (browser or UTC, always labeled), density, reduced motion, block explorer (Solana Explorer or Solscan, always with the cluster), Wallet Overview auto-refresh (30/60/120 s or off; never faster than 30 s), keyboard shortcuts, and short or full addresses.
+- Owner console inside Settings (SPEC-026), visible and callable only with the new owner-only permission `platform.administer`: Overview (users, members, sessions, 24 h audit outcomes, readiness, cluster, providers, last worker snapshot), Members (set role, suspend/reactivate membership, disable/enable account, revoke sessions), platform Sessions, Audit log viewer with filters, Organization (rename, role and permission matrix), platform Announcement with preview, System (allowlisted configuration, API process, PostgreSQL migrations and table statistics, Redis facts, on-demand cluster verification, provider health history), Jobs (BullMQ counts, schedulers, recent jobs, run the provider probe), and Developer (live route catalog with access requirements, OpenAPI link, cache purge).
+- Platform announcement banner under the status bar for every signed-in user; the status bar shows the user's display name (or short wallet address) linking to the profile.
+- API endpoints `/api/v1/me/*`, `/api/v1/announcements/current`, and `/api/v1/admin/*` (API.md §4.5–4.6); error codes `OPERATION_NOT_ALLOWED` and `ACCOUNT_DISABLED`.
+- Audit actions `user.profile_updated`, `session.revoked`, `role.revoked`, `member.suspended`, `member.reactivated`, `user.disabled`, `user.enabled`, `organization.updated`, `announcement.updated`, `system.cluster_verification_requested`, `system.job_enqueued`, `system.cache_purged`.
+- Database: `user_preferences` and `platform_settings` tables (migration `0002`), read-only access to the migration log for the application role (migration `0003`). Run `pnpm db:migrate && pnpm db:seed`.
+- `AUTH_RATE_LIMIT_PER_MINUTE` (default 20) makes the sign-in rate limit configurable.
+- Shared UI: `Timestamp`, `DisplaySettingsProvider`, `ConfirmAction`, form controls, `ScrollRegion`.
+
+### Changed — Iteration 01.5
+- The `admin` role no longer holds every permission: it lacks the new owner-only `platform.administer`.
+- Disabled accounts are refused at sign-in with `ACCOUNT_DISABLED` (previously a session was created and immediately treated as revoked).
+- Wallet Overview block times render in the user's time zone with its label (previously always UTC); explorer links are built in the terminal for the chosen explorer.
+- Queue names moved to `@sct/config` so the API can inspect the worker's queues.
+
 ### Added — Iteration 01: Foundation and Wallet Overview
 - pnpm + Turborepo monorepo: `apps/terminal` (Next.js 16), `apps/api` (Fastify 5), `apps/worker` (BullMQ 6) and packages `network`, `config`, `validation`, `observability`, `providers`, `solana`, `database`, `ui`, `testing`.
 - Runtime configuration validated with Zod at startup; `mainnet-beta` is rejected with the readiness-gate message.

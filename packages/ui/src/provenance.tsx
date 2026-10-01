@@ -2,7 +2,9 @@
 
 import type { Provenance } from "@sct/validation";
 import { Popover } from "radix-ui";
+import { useDisplaySettings } from "./display-settings";
 import { describeFreshness } from "./freshness";
+import { formatTimestamp } from "./timestamp";
 import { useNow } from "./use-now";
 
 /** WO-AC-07 — freshness label with the stale state in the warning color. */
@@ -23,6 +25,7 @@ export function FreshnessLabel(props: { retrievedAt: string; staleAfterMs: numbe
 /** WO-AC-06 — provenance details, keyboard accessible. */
 export function ProvenanceDetails(props: { provenance: Provenance; label: string }) {
   const p = props.provenance;
+  const { timeZone } = useDisplaySettings();
   const rows: Array<[string, string]> = [
     ["Source", p.source],
     ["Provider", p.provider],
@@ -31,7 +34,7 @@ export function ProvenanceDetails(props: { provenance: Provenance; label: string
     ["Network", p.network],
     ["Commitment", p.commitment ?? "—"],
     ["Context slot", p.slot ?? "—"],
-    ["Retrieved at", p.retrievedAt],
+    ["Retrieved at", `${formatTimestamp(p.retrievedAt, timeZone)} (${p.retrievedAt})`],
     ["Latency", p.latencyMs !== undefined ? `${p.latencyMs} ms` : "—"],
     ["Confidence", p.confidence],
     ["Fallback used", p.fallbackUsed ? "Yes" : "No"],

@@ -1,9 +1,10 @@
 "use client";
 
-import { Button } from "@sct/ui";
+import { Button, truncateMiddle } from "@sct/ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { AnnouncementBanner } from "../announcements/announcement-banner";
 import { useSession, useSignOut } from "../auth/use-session";
 import { ClusterGuard } from "../network/cluster-guard";
 import { NetworkIndicator } from "../network/network-indicator";
@@ -12,10 +13,11 @@ import { ProviderStatusText } from "../system/provider-status";
 import { useProviderHealth } from "../system/use-provider-health";
 import { WalletConnectControl } from "../wallets/wallet-connect-control";
 
-/** Only capabilities that exist are listed (prompt §106). */
+/** Only capabilities that exist are listed (prompt §106). Settings needs a session (SET-AC-01). */
 const NAVIGATION = [
-  { href: "/", label: "Wallet overview" },
-  { href: "/system", label: "System" },
+  { href: "/", label: "Wallet overview", requiresSession: false },
+  { href: "/system", label: "System", requiresSession: false },
+  { href: "/settings", label: "Settings", requiresSession: true },
 ] as const;
 
 function StatusBar() {
@@ -55,6 +57,13 @@ function StatusBar() {
       <span className="ml-auto flex flex-wrap items-center gap-2 text-text-secondary">
         {session ? (
           <>
+            <Link
+              href="/settings/profile"
+              className="text-text-primary hover:underline"
+              title="Your profile and settings"
+            >
+              {session.user.displayName ?? truncateMiddle(session.walletAddress)}
+            </Link>
             <span>{session.organization?.name ?? "No organization"}</span>
             <Button
               variant="ghost"
@@ -76,6 +85,8 @@ function StatusBar() {
 
 export function TerminalShell(props: { children: ReactNode }) {
   const pathname = usePathname();
+  const { session } = useSession();
+  const navigation = NAVIGATION.filter((item) => !item.requiresSession || session !== null);
   return (
     <div className="flex min-h-screen flex-col">
       <a
@@ -86,6 +97,7 @@ export function TerminalShell(props: { children: ReactNode }) {
       </a>
       <header>
         <StatusBar />
+        <AnnouncementBanner />
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
         <nav aria-label="Primary" className="border-b border-border md:w-48 md:border-r md:border-b-0">
@@ -93,7 +105,7 @@ export function TerminalShell(props: { children: ReactNode }) {
             Solana Corporate Terminal
           </p>
           <ul className="flex md:flex-col">
-            {NAVIGATION.map((item) => {
+            {navigation.map((item) => {
               const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               return (
                 <li key={item.href}>
