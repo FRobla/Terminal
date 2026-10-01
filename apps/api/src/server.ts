@@ -24,6 +24,8 @@ import type { ApiServices } from "./services";
 import { adminSystemRoutes } from "./system/http/admin-system-routes";
 import { systemRoutes } from "./system/http/system-routes";
 import { meRoutes } from "./users/http/me-routes";
+import { transactionRoutes } from "./transactions/http/transaction-routes";
+import { walletRegistryRoutes } from "./wallets/http/wallet-registry-routes";
 import { walletRoutes } from "./wallets/http/wallet-routes";
 
 export const API_PREFIX = "/api/v1";
@@ -114,6 +116,20 @@ export async function buildServer(services: ApiServices, options: ServerOptions 
         getWalletOverview: services.getWalletOverview,
         isClusterVerified: () => services.clusterVerification.isVerified(),
         audit: services.audit,
+      });
+      await api.register(walletRegistryRoutes, {
+        registration: services.walletRegistration,
+        directory: services.walletDirectory,
+        assignments: services.walletAssignments,
+        history: services.walletHistory,
+        exports: services.walletExports,
+        isClusterVerified: () => services.clusterVerification.isVerified(),
+      });
+      await api.register(transactionRoutes, {
+        transfers: services.solTransfers,
+        signing: services.transactionSigning,
+        queries: services.transactionQueries,
+        isClusterVerified: () => services.clusterVerification.isVerified(),
       });
       await api.register(auditRoutes, { reader: services.auditRepository });
       await api.register(meRoutes, { profiles: services.profiles, preferences: services.preferences });

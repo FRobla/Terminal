@@ -19,6 +19,15 @@ import { createApiServices, type ApiConfig } from "../src/services";
 export const TEST_ORIGIN = "http://localhost:3000";
 
 const DYNAMIC_TABLES = [
+  "idempotency_keys",
+  "transaction_state_transitions",
+  "transaction_records",
+  "indexed_transactions",
+  "wallet_sync_state",
+  "wallet_tags",
+  "wallet_assignments",
+  "wallet_ownership_challenges",
+  "managed_wallets",
   "auth_challenges",
   "sessions",
   "audit_events",
@@ -57,6 +66,8 @@ export async function migratorQuery<T extends Record<string, unknown>>(
 
 export interface TestApiOptions {
   rpcHandlers?: Record<string, StubRpcHandler | StubRpcBehavior>;
+  /** Starts a second stub server configured as the fallback RPC (SPEC-006 amendment). */
+  fallbackRpcHandlers?: Record<string, StubRpcHandler | StubRpcBehavior>;
   config?: Partial<ApiConfig>;
   verifyCluster?: boolean;
 }
@@ -64,6 +75,9 @@ export interface TestApiOptions {
 export async function createTestApi(options: TestApiOptions = {}) {
   await resetDynamicState();
   const stub = await startStubRpcServer(options.rpcHandlers);
+  const fallbackStub = options.fallbackRpcHandlers
+    ? await startStubRpcServer(options.fallbackRpcHandlers)
+    : null;
   const logLines: string[] = [];
   const logger = createLogger({
     service: "api-test",
@@ -82,6 +96,7 @@ export async function createTestApi(options: TestApiOptions = {}) {
     APP_ENV: "ci",
     SOLANA_CLUSTER: "devnet",
     SOLANA_RPC_URL: stub.url,
+    SOLANA_RPC_FALLBACK_URL: fallbackStub?.url,
     SOLANA_EXPECTED_GENESIS_HASH: undefined,
     PUBLIC_APP_ORIGIN: TEST_ORIGIN,
     AUTH_SECRET: Buffer.alloc(32, 9).toString("base64"),
@@ -96,7 +111,10 @@ export async function createTestApi(options: TestApiOptions = {}) {
     rateLimit: { max: 10_000, timeWindowMs: 60_000 },
     authRateLimit: { max: 10_000, timeWindowMs: 60_000 },
   });
-  if (options.verifyCluster ?? true) await services.clusterVerification.verify();
+  if (options.verifyCluster ?? true) {
+    await services.clusterVerification.verify();
+    await services.fallbackClusterVerification?.verify();
+  }
 
   async function signIn(keyPair?: TestKeyPair) {
     const identity = keyPair ?? (await createTestKeyPair());
@@ -157,14 +175,17 @@ export async function createTestApi(options: TestApiOptions = {}) {
     app,
     services,
     stub,
+    fallbackStub,
     logLines,
     signIn,
     grantRole,
     async close() {
       services.clusterVerification.stop();
+      services.fallbackClusterVerification?.stop();
       await app.close();
       await services.close();
       await stub.close();
+      await fallbackStub?.close();
       await redis.quit();
       await database.close();
     },
@@ -179,7 +200,7 @@ export type TestSession = Awaited<ReturnType<TestApi["signIn"]>>;
 export function callAs(
   testApi: TestApi,
   session: TestSession | null,
-  method: "GET" | "POST" | "PUT" | "PATCH",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
   payload?: unknown,
 ) {

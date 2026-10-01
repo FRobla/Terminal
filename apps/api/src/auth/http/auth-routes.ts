@@ -9,7 +9,7 @@ import {
 } from "@sct/validation";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { ApiError } from "../../platform/api-error";
 import { envelope } from "../../platform/envelope";
 import type { SessionService } from "../application/session-service";

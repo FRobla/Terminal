@@ -1,5 +1,5 @@
 import type { AdminSessionSummary, SessionSummary } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { ApiError } from "../../platform/api-error";
 import { actorAuditFields, type Actor } from "./actor";
 import type { ActiveSessionCriteria, ActiveSessionRecord, SessionDirectory, Transaction } from "./ports";

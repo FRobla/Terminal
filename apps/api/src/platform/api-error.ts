@@ -3,6 +3,12 @@ import type { ErrorCode } from "@sct/validation";
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   VALIDATION_FAILED: 400,
   WALLET_ADDRESS_INVALID: 400,
+  WALLET_NOT_FOUND: 404,
+  WALLET_ALREADY_REGISTERED: 409,
+  WALLET_OWNERSHIP_UNVERIFIED: 400,
+  TRANSACTION_NOT_FOUND: 404,
+  TRANSACTION_STATE_CONFLICT: 409,
+  TRANSACTION_MESSAGE_MISMATCH: 409,
   CLUSTER_MISMATCH: 409,
   UNAUTHENTICATED: 401,
   SESSION_EXPIRED: 401,
@@ -26,6 +32,14 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   VALIDATION_FAILED: "The request failed validation.",
   WALLET_ADDRESS_INVALID: "The provided value is not a valid Solana address.",
+  WALLET_NOT_FOUND: "The wallet could not be found in this organization.",
+  WALLET_ALREADY_REGISTERED: "This address is already registered in this organization on this cluster.",
+  WALLET_OWNERSHIP_UNVERIFIED:
+    "Control of this wallet could not be verified. Request a new challenge and sign it with the wallet.",
+  TRANSACTION_NOT_FOUND: "The transaction could not be found in this organization.",
+  TRANSACTION_STATE_CONFLICT: "This operation is not possible in the transaction's current state.",
+  TRANSACTION_MESSAGE_MISMATCH:
+    "The signed transaction differs from the reviewed transaction. Nothing was sent.",
   CLUSTER_MISMATCH: "The requested cluster does not match the cluster configured for this terminal.",
   UNAUTHENTICATED: "Sign in to continue.",
   SESSION_EXPIRED: "Your session has expired. Sign in again.",

@@ -77,3 +77,16 @@ export async function signInWithRole(page: Page, roleKey: string): Promise<strin
   await expect(page.getByText("Default Organization")).toBeVisible();
   return address;
 }
+
+/**
+ * The public Devnet RPC rate-limits shared runner IPs; the terminal then correctly shows
+ * DATA UNAVAILABLE. Like a user, retry with Refresh after the 10 s budget window.
+ */
+export async function expectAfterDevnetRateLimit(page: Page, assertion: () => Promise<void>): Promise<void> {
+  await expect(async () => {
+    if ((await page.getByText("RPC rate limited").count()) > 0) {
+      await page.getByRole("button", { name: /^Refresh/ }).click();
+    }
+    await assertion();
+  }).toPass({ intervals: [11_000, 11_000, 11_000], timeout: 45_000 });
+}

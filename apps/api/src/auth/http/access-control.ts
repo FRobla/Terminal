@@ -1,7 +1,7 @@
 import { updateRequestContext } from "@sct/observability";
 import type { Permission } from "@sct/validation";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { ApiError } from "../../platform/api-error";
 import type { Actor } from "../application/actor";
 import type { AuthenticatedSession, SessionService } from "../application/session-service";

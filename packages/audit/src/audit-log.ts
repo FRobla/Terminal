@@ -1,7 +1,7 @@
 import type { Cluster } from "@sct/network";
 import { currentRequestContext } from "@sct/observability";
-import { type AuditAction, type AuditMetadata, sanitizeAuditMetadata } from "../domain/audit-actions";
-import type { AuditEventRecord, AuditEventWriter } from "./ports";
+import { type AuditAction, type AuditMetadata, sanitizeAuditMetadata } from "./audit-actions";
+import type { AuditEventRecord, AuditEventWriter } from "./audit-event-record";
 
 export interface AuditEventInput<A extends AuditAction> {
   action: A;

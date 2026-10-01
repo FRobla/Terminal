@@ -12,7 +12,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { requireActor, requireOrganizationActor } from "../../auth/http/access-control";
 import { envelope } from "../../platform/envelope";
-import type { ProviderHistoryReader, QueueInspector } from "../application/console-ports";
+import type { ProviderHistoryReader, ProviderProbeQueue } from "../application/console-ports";
 import type { PlatformOverview } from "../application/platform-overview";
 import type { RuntimeInspection } from "../application/runtime-inspection";
 import type { SystemAdministration } from "../application/system-administration";
@@ -27,7 +27,7 @@ export interface AdminSystemRoutesOptions {
   runtime: RuntimeInspection;
   administration: SystemAdministration;
   providerHistory: ProviderHistoryReader;
-  providerHealthQueue: QueueInspector;
+  providerHealthQueue: ProviderProbeQueue;
 }
 
 /** SPEC-026 — owner console: overview, runtime, cluster, providers, jobs. */

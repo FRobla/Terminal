@@ -1,8 +1,14 @@
-import { PROVIDER_HEALTH_PROBE_JOB, PROVIDER_HEALTH_QUEUE } from "@sct/config";
+import {
+  PROVIDER_HEALTH_PROBE_JOB,
+  PROVIDER_HEALTH_QUEUE,
+  TRANSACTION_CONFIRMATION_QUEUE,
+  TRANSACTION_RECONCILIATION_QUEUE,
+  WALLET_SYNC_QUEUE,
+} from "@sct/config";
 import type { QueueState } from "@sct/validation";
 import { Queue } from "bullmq";
 import type { Redis } from "ioredis";
-import type { QueueInspector } from "../application/console-ports";
+import type { ProviderProbeQueue, QueueInspector } from "../application/console-ports";
 
 const RECENT_JOBS = 10;
 const RESULT_TEXT_LIMIT = 200;
@@ -17,14 +23,16 @@ function resultText(value: unknown): string | null {
   return text.length > RESULT_TEXT_LIMIT ? `${text.slice(0, RESULT_TEXT_LIMIT)}…` : text;
 }
 
-/** Reads BullMQ state for the provider-health queue (OWN-AC-15). The queue client is created on first use. */
-export class BullmqProviderHealthQueue implements QueueInspector {
-  readonly queueName = PROVIDER_HEALTH_QUEUE;
+/** Reads BullMQ state for one queue (OWN-AC-15). The queue client is created on first use. */
+export class BullmqQueueInspector implements QueueInspector {
   private queue: Queue | undefined;
 
-  constructor(private readonly redis: Redis) {}
+  constructor(
+    protected readonly redis: Redis,
+    readonly queueName: string,
+  ) {}
 
-  private client(): Queue {
+  protected client(): Queue {
     // A shared connection: BullMQ does not close it when the queue closes.
     this.queue ??= new Queue(this.queueName, { connection: this.redis });
     return this.queue;
@@ -77,6 +85,17 @@ export class BullmqProviderHealthQueue implements QueueInspector {
     };
   }
 
+  async close(): Promise<void> {
+    await this.queue?.close();
+  }
+}
+
+/** The provider-health queue, which the owner can also trigger (OWN-AC-15). */
+export class BullmqProviderHealthQueue extends BullmqQueueInspector implements ProviderProbeQueue {
+  constructor(redis: Redis) {
+    super(redis, PROVIDER_HEALTH_QUEUE);
+  }
+
   async enqueueProbe(): Promise<{ jobId: string; jobName: string }> {
     const job = await this.client().add(
       PROVIDER_HEALTH_PROBE_JOB,
@@ -86,8 +105,11 @@ export class BullmqProviderHealthQueue implements QueueInspector {
     if (!job.id) throw new Error("BullMQ did not assign a job id");
     return { jobId: job.id, jobName: PROVIDER_HEALTH_PROBE_JOB };
   }
+}
 
-  async close(): Promise<void> {
-    await this.queue?.close();
-  }
+/** Read-only inspectors for the worker queues the owner console lists besides provider health. */
+export function workerQueueInspectors(redis: Redis): BullmqQueueInspector[] {
+  return [WALLET_SYNC_QUEUE, TRANSACTION_CONFIRMATION_QUEUE, TRANSACTION_RECONCILIATION_QUEUE].map(
+    (name) => new BullmqQueueInspector(redis, name),
+  );
 }

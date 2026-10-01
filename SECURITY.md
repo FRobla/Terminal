@@ -36,6 +36,14 @@ Private keys and seed material are never:
    - The user is warned that the terminal cannot recover a lost passphrase or key.
    - Only the public address, label, purpose, and ownership metadata are sent to the API.
 
+As built (Iteration 02, SPEC-010):
+- The seed comes from `crypto.getRandomValues` and is imported as a non-extractable Web Crypto key; no Web Crypto key is ever extractable.
+- The AES-GCM ciphertext authenticates the address as additional data, and records are never overwritten.
+- Every signature asks for the passphrase again; there is no unlocked state.
+- Export first records `wallet.exported` through the API (`wallet.export`), then downloads a Solana CLI key file. The material is never displayed or copied.
+- An e2e test records every request during create, sign, and export, and asserts that no passphrase, ciphertext, salt, IV, or secret key appears.
+- Because the encrypted key is on the user's device, the export permission is an audit and policy gate, not a cryptographic one.
+
 ### 2.3 Future path
 
 Signing is accessed through a `TransactionSigner` boundary compatible with `@solana/keychain`, so that KMS, HSM, MPC, institutional custody, or multisig backends can be introduced without changing domain code. Any change to custody architecture requires explicit human approval.
@@ -47,6 +55,12 @@ Signing is accessed through a `TransactionSigner` boundary compatible with `@sol
 - Externally sourced instructions or transactions (e.g. from a DEX aggregator) are decoded and simulated before being presented; they are never blindly passed to the wallet.
 - Explicit confirmation is required for every signature. No auto-sign, no "remember my choice".
 - Every transaction is tracked through the lifecycle state machine ([SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md)).
+- As built (Iteration 02):
+  - The API stores the SHA-256 of the reviewed message and refuses a submitted transaction whose message differs or whose fee-payer signature does not verify. Nothing is sent in that case (TXL-AC-12).
+  - Only the user who prepared a transaction may sign or submit it.
+  - Wallets that only offer sign-and-send are refused.
+  - Unknown programs or address lookup tables require an explicit acknowledgement.
+- Proof of control: registering a browser or local wallet requires a signature over a server-built, single-use text challenge bound to the organization, user, address, and cluster (SPEC-009). The text states that no transaction is authorized and cannot be parsed as a transaction.
 
 ## 4. Network safety
 

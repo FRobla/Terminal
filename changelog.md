@@ -6,6 +6,47 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versio
 
 ## [Unreleased]
 
+### Added — Iteration 02: Wallet Subsystem
+- **Wallet registry (SPEC-009):**
+  - Register the connected browser wallet or a local wallet with proof of control (a server-built, single-use text challenge signed by the wallet), or any address as watch-only.
+  - Wallets carry a label, category, purpose, tags, notes, and custody type. They can be archived and restored, and are never deleted.
+  - Application wallet roles (`CREATOR`, `FUNDER`, `CONTROLLER`, `VIEWER`) can be assigned to organization members (`organization.manage`).
+- **Terminal `Wallets` section:**
+  - The registry list has filters and live SOL balances (one batched `getMultipleAccounts` call, with provenance and freshness).
+  - Each wallet has a detail page with metadata, assignments, the live overview, transfers, and indexed history.
+  - Signing in never registers a wallet.
+- **Indexed history:**
+  - The worker queue `wallets.sync` sweeps every 60 s and runs idempotent per-wallet jobs. It indexes new signatures, backfills up to 1,000 per wallet, and fills fee and SOL change from `getTransaction`.
+  - Sync failures are recorded and shown.
+  - A manual **Sync now** action is limited to once per 30 s per wallet.
+- **Local wallets (SPEC-010):**
+  - Keys are generated in the browser and encrypted with a passphrase: PBKDF2-SHA-256 with 600,000 iterations and AES-256-GCM, with the address as authenticated data. They are stored in IndexedDB and only the public address is registered.
+  - Each signature asks for the passphrase again.
+  - Recovery material can be exported as a Solana CLI key file through an explicit, audited flow (`wallet.export`). Keys can be removed from the device.
+  - A key whose registration failed stays listed for registration.
+- **SOL transfers on the full transaction lifecycle (SPEC-004):**
+  - The API builds a version-0 System transfer, simulates it, checks the simulated balance changes against the expected effects (amount plus fee), and returns a server-built review: cluster, fee payer, signers, programs (unknown ones labeled), writable accounts, movements, fee, and simulation.
+  - The wallet signs the exact bytes, through Wallet Standard `solana:signTransaction` or the local key.
+  - The API verifies the message hash and the fee-payer signature, persists the signature, and sends.
+  - The worker confirms, expires, re-sends while the blockhash is valid, and reconciles against finalized balances.
+  - Every transition is persisted, appended to the state history, and audited. Idempotency keys make repeated requests safe.
+- **Terminal transfers:** a Transfer SOL form, a review and signing page with the lifecycle timeline, and a `Transactions` section.
+- **Fallback RPC (SPEC-006 amendment):** `SOLANA_RPC_FALLBACK_URL` is now used for transport-level failures of the primary, only while the fallback's genesis hash is verified. Provenance records `fallbackUsed` and the provider, and the fallback appears in provider health and the owner console.
+- **API endpoints:**
+  - `/api/v1/wallets` registry routes, `/api/v1/wallets/{id}/transactions|sync|exports|assignments`, and `/api/v1/organization/members`.
+  - `/api/v1/transactions/sol-transfers` and `/api/v1/transactions/{id}/signing|signing-failed|cancel|submit`, plus `GET /api/v1/transactions[/{id}]` (API.md §4.7–4.8).
+- **Error codes:** `WALLET_NOT_FOUND`, `WALLET_ALREADY_REGISTERED`, `WALLET_OWNERSHIP_UNVERIFIED`, `TRANSACTION_NOT_FOUND`, `TRANSACTION_STATE_CONFLICT`, and `TRANSACTION_MESSAGE_MISMATCH`.
+- **Audit actions:** `wallet.created`, `wallet.registration_rejected`, `wallet.updated`, `wallet.assigned`, `wallet.unassigned`, `wallet.sync_requested`, `wallet.exported`, and one `transaction.*` action per lifecycle state (SPEC-008 amendment).
+- **Database:** migrations `0004_wallet_registry` and `0005_transaction_lifecycle`. The transition history is append-only for the application role. Run `pnpm db:migrate`.
+- **Worker queues:** `transactions.confirmation` (3 s sweep plus on-demand jobs) and `transactions.reconciliation` (10 s sweep). The owner console Jobs page lists every worker queue.
+
+### Changed — Iteration 02
+- The audit catalog, `AuditLog`, and the audit writer moved from `apps/api` to the new package `@sct/audit`. The transaction lifecycle core lives in the new package `@sct/transactions` (ADR-0010).
+- Solana readers depend on `RpcGateway`, and the `execute` callback receives the RPC client of the endpoint serving the call. Provenance names that endpoint.
+- A failed `sendTransaction` preflight is no longer retried by the provider pipeline: it is the node's definitive answer.
+- `ENCRYPTION_KEY` is documented as reserved: Iteration 02 needs no server-side encryption.
+- The test wallet supports `solana:signTransaction`, and the stub RPC server can return JSON-RPC error `data`.
+
 ### Added — Iteration 01.5: User Settings and Owner Console
 - `Settings` for every signed-in user (SPEC-025): Profile (display name, sign-in wallets, organization, roles, effective permissions), Preferences, and Sessions (list active sessions, revoke one or all others).
 - Server-side, per-user preferences that change real behavior: timestamp time zone (browser or UTC, always labeled), density, reduced motion, block explorer (Solana Explorer or Solscan, always with the cluster), Wallet Overview auto-refresh (30/60/120 s or off; never faster than 30 s), keyboard shortcuts, and short or full addresses.

@@ -100,7 +100,13 @@ Responses never include stack traces, SQL, secrets, database or provider credent
 | `SIWS_CHALLENGE_INVALID` | 400 | Challenge unknown, expired, or already used |
 | `SIWS_SIGNATURE_INVALID` | 401 | Sign-in signature verification failed |
 | `ACCOUNT_DISABLED` | 403 | The account was disabled by the owner; sign-in is refused |
-| `NOT_FOUND` | 404 | Resource not found (domain-specific codes such as `WALLET_NOT_FOUND` from Iteration 02) |
+| `NOT_FOUND` | 404 | Resource not found (domain-specific codes below take precedence) |
+| `WALLET_NOT_FOUND` | 404 | The wallet is not registered in the caller's organization on this cluster |
+| `WALLET_ALREADY_REGISTERED` | 409 | The address is already registered (active or archived) in the organization on this cluster |
+| `WALLET_OWNERSHIP_UNVERIFIED` | 400 | Proof of control failed; `details.reason` is `CHALLENGE_NOT_FOUND`, `CHALLENGE_CONSUMED`, `CHALLENGE_EXPIRED`, `CHALLENGE_BINDING_MISMATCH`, or `SIGNATURE_INVALID` |
+| `TRANSACTION_NOT_FOUND` | 404 | The transaction is not in the caller's organization |
+| `TRANSACTION_STATE_CONFLICT` | 409 | The operation does not fit the transaction's current state |
+| `TRANSACTION_MESSAGE_MISMATCH` | 409 | The submitted transaction is not the reviewed one (`details.reason` `MESSAGE_MISMATCH`) or the fee payer's signature does not verify (`SIGNATURE_INVALID`); nothing was sent |
 | `IDEMPOTENCY_CONFLICT` | 409 | Same key reused with a different payload |
 | `OPERATION_NOT_ALLOWED` | 409 | The operation is refused for this target; `details.reason` is `SELF`, `OWNER_PROTECTED`, `NOT_A_MEMBER`, or `CURRENT_SESSION` |
 | `RATE_LIMITED` | 429 | Client exceeded API rate limit; `Retry-After` header set |
@@ -113,7 +119,7 @@ Responses never include stack traces, SQL, secrets, database or provider credent
 
 Partial upstream failures inside an aggregate (e.g. token accounts unavailable while the balance is available) are **not** errors: the endpoint returns `200` with per-field `Sourced<T>` status.
 
-## 4. Endpoints — Iterations 01 and 01.5
+## 4. Endpoints — Iterations 01, 01.5, and 02
 
 ### 4.1 System
 
@@ -213,14 +219,44 @@ Every route requires `platform.administer` (held only by `owner`). Member action
 | `GET` | `/api/v1/admin/developer/routes` | Every registered route with method, path, and access (`public`, `session`, or permission) |
 | `POST` | `/api/v1/admin/developer/cache/purge` | `{ target: wallet-overview \| permissions }`; returns `{ keysDeleted }`. Audits `system.cache_purged` |
 
-The owner's audit log viewer uses `GET /api/v1/audit/events` (§4.4).
+The owner's audit log viewer uses `GET /api/v1/audit/events` (§4.4). From Iteration 02, `GET /api/v1/admin/jobs` also lists `wallets.sync`, `transactions.confirmation`, and `transactions.reconciliation`, and the runtime configuration includes `rpcFallbackEndpoint` (redacted, or `null`).
+
+### 4.7 Wallet registry ([SPEC-009](./docs/specs/SPEC-009-wallet-registry.md), [SPEC-010](./docs/specs/SPEC-010-local-wallet-generation.md))
+
+Every route is scoped to the active organization and the API cluster; another organization's wallet returns `404 WALLET_NOT_FOUND`.
+
+| Method | Path | Permission | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/wallets/ownership-challenges` | `wallet.create` | Body `{ address }`. Returns `{ challengeId, message, expiresAt }`; the wallet signs `message` with `signMessage` (single use, 5 minutes) |
+| `POST` | `/api/v1/wallets` | `wallet.create` | Registers a wallet. Body: `custodyType` (`WATCH_ONLY`, `BROWSER_WALLET`, or `LOCAL_ENCRYPTED`), `address`, `label` (1–64), `category`, optional `purpose` (≤ 200), `tags` (≤ 10, `a-z0-9-`), `notes` (≤ 2,000); controlled custody adds `ownership: { challengeId, signature }` (base64). Audits `wallet.created` or `wallet.registration_rejected` |
+| `GET` | `/api/v1/wallets` | `wallet.read` | Query `status` (default `active`), `category`, `custodyType`, `tag`, `q` (label or address prefix), `limit` (≤ 100), `cursor`. Returns `{ wallets, balances: Sourced<{ walletId, lamports }[]> }` (one `getMultipleAccounts` call, 10 s cache) |
+| `GET` | `/api/v1/wallets/{walletId}` | `wallet.read` | Wallet with tags, assignments, the caller's roles (`myRoles`), and sync state |
+| `PATCH` | `/api/v1/wallets/{walletId}` | `wallet.create` | Any of `label`, `purpose`, `category`, `tags`, `notes`, `status` (`active` or `archived`). Address, cluster, and custody are immutable. Audits `wallet.updated` (field names only) |
+| `POST` | `/api/v1/wallets/{walletId}/assignments` | `organization.manage` | Body `{ userId, role }` (`CREATOR`, `FUNDER`, `CONTROLLER`, or `VIEWER`) for an active member. Audits `wallet.assigned` |
+| `DELETE` | `/api/v1/wallets/{walletId}/assignments/{userId}/{role}` | `organization.manage` | Removes an assignment. Audits `wallet.unassigned` |
+| `GET` | `/api/v1/organization/members` | `organization.manage` | Active members (id, display name, sign-in wallet) for the assignment picker |
+| `GET` | `/api/v1/wallets/{walletId}/transactions` | `wallet.read` | Indexed history, newest first: `{ transactions[], sync, backfillCap }`; `limit` ≤ 100, opaque `cursor`. `memo` is sanitized untrusted text |
+| `POST` | `/api/v1/wallets/{walletId}/sync` | `wallet.read` | Requests a sync; `{ enqueued, retryAfterMs }` (at most one per 30 s per wallet). Audits `wallet.sync_requested` when enqueued |
+| `POST` | `/api/v1/wallets/{walletId}/exports` | `wallet.export` | Records an export of local recovery material before the browser decrypts it (`LOCAL_ENCRYPTED` only). No key material is sent. Audits `wallet.exported` |
+
+### 4.8 Transactions ([SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md))
+
+| Method | Path | Permission | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/transactions/sol-transfers` | `wallet.control` + `CREATOR`/`CONTROLLER` on the source | Body `{ sourceWalletId, destination, lamports, idempotencyKey }`. Builds, simulates, and reviews; returns the record in `AWAITING_SIGNATURE` (with `review` and `unsignedTransactionBase64`) or `SIMULATION_FAILED`. Same key + same body returns the original record; a different body → `IDEMPOTENCY_CONFLICT` |
+| `POST` | `/api/v1/transactions/{id}/signing` | `wallet.control` (initiator) | Body `{ acknowledgeUnknownPrograms }` → `SIGNING` |
+| `POST` | `/api/v1/transactions/{id}/signing-failed` | `wallet.control` (initiator) | Body `{ reason }` (`USER_REJECTED`, `WALLET_ERROR`, `UNSUPPORTED_WALLET`, or `WRONG_PASSPHRASE`) → `SIGNING_FAILED` |
+| `POST` | `/api/v1/transactions/{id}/cancel` | `wallet.control` (initiator) | `AWAITING_SIGNATURE` → `CANCELLED` |
+| `POST` | `/api/v1/transactions/{id}/submit` | `wallet.control` (initiator) | Body `{ signedTransactionBase64 }`. Verifies the message hash and the fee payer signature, records the signature (`SUBMITTED`), and sends; repeated identical submissions send once |
+| `GET` | `/api/v1/transactions` | `wallet.read` | Organization records, newest first; query `walletId`, `state`, `limit`, `cursor` |
+| `GET` | `/api/v1/transactions/{id}` | `wallet.read` | Record with review, failure, reconciliation, and `stateHistory` |
+
+The worker moves submitted records through `CONFIRMING`, `CONFIRMED`/`CONFIRMATION_FAILED`/`EXPIRED`, and `RECONCILED`/`RECONCILIATION_REQUIRED`/`RECONCILIATION_FAILED`.
 
 ## 5. Planned endpoints
 
 | Iteration | Resource | Examples |
 | --- | --- | --- |
-| 02 | Wallet registry | `GET/POST /api/v1/wallets`, `GET/PATCH /api/v1/wallets/{walletId}`, `GET /api/v1/wallets/{walletId}/transactions` |
-| 02 | Transactions | `POST /api/v1/transactions` (prepare), `POST /api/v1/transactions/{id}/simulate`, `POST /api/v1/transactions/{id}/submit`, `GET /api/v1/transactions/{id}` |
 | 03 | Portfolio | `GET /api/v1/portfolio`, `GET /api/v1/portfolio/snapshots` |
 | 03 | Market data | `GET /api/v1/market-data/prices?mints=` |
 | 04 | Trading | `POST /api/v1/trading/quotes`, `POST /api/v1/trading/swaps` |

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestApi, migratorQuery, type TestApi } from "../../test/harness";
-import { AUDIT_ACTION_METADATA, type AuditAction } from "./domain/audit-actions";
+import { AUDIT_ACTION_METADATA, type AuditAction } from "@sct/audit";
 
 let api: TestApi | undefined;
 afterEach(async () => {
@@ -40,6 +40,13 @@ describe("audit log", () => {
       apiKey: "x",
       cookie: "x",
     };
+    const transition = {
+      from: "DRAFT",
+      to: "SIMULATING",
+      purpose: "sol-transfer",
+      walletId: "01a0f3c3-0000-7000-8000-000000000000",
+      txSignature: "sig",
+    };
     const samples: { [A in AuditAction]: Record<string, unknown> } = {
       "user.login": { walletAddress: "a", method: "signIn" },
       "user.login_failed": { walletAddress: null, reason: "r" },
@@ -78,6 +85,29 @@ describe("audit log", () => {
       "system.cluster_verification_requested": { verified: true },
       "system.job_enqueued": { queue: "q", jobName: "j" },
       "system.cache_purged": { target: "permissions", keysDeleted: 0 },
+      "wallet.created": { address: "a", custodyType: "WATCH_ONLY", category: "RESEARCH" },
+      "wallet.registration_rejected": {
+        address: "a",
+        custodyType: "BROWSER_WALLET",
+        reason: "SIGNATURE_INVALID",
+      },
+      "wallet.updated": { address: "a", fields: ["label"] },
+      "wallet.assigned": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000", role: "VIEWER" },
+      "wallet.unassigned": { targetUserId: "01a0f3c3-0000-7000-8000-000000000000", role: "VIEWER" },
+      "wallet.sync_requested": { address: "a" },
+      "wallet.exported": { address: "a", format: "solana-cli-keypair" },
+      "transaction.prepared": transition,
+      "transaction.simulation_requested": transition,
+      "transaction.simulated": transition,
+      "transaction.review_ready": transition,
+      "transaction.cancelled": transition,
+      "transaction.signing_requested": transition,
+      "transaction.submitted": transition,
+      "transaction.confirming": transition,
+      "transaction.confirmed": transition,
+      "transaction.reconciled": transition,
+      "transaction.reconciliation_required": transition,
+      "transaction.failed": transition,
     };
     for (const action of Object.keys(AUDIT_ACTION_METADATA) as AuditAction[]) {
       await api.services.audit.record({

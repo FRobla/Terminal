@@ -1,5 +1,5 @@
 import type { Permission, Profile } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { actorAuditFields, type Actor } from "../../auth/application/actor";
 import { ApiError } from "../../platform/api-error";
 import type { ProfileStore } from "./ports";

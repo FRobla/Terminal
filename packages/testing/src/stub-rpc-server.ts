@@ -9,7 +9,7 @@ import type { AddressInfo } from "node:net";
 export type StubRpcBehavior =
   | { kind: "result"; result: unknown }
   | { kind: "http-error"; status: number; headers?: Record<string, string> }
-  | { kind: "rpc-error"; code: number; message: string }
+  | { kind: "rpc-error"; code: number; message: string; data?: unknown }
   | { kind: "hang" };
 
 export type StubRpcHandler = (params: unknown[]) => StubRpcBehavior;
@@ -82,7 +82,11 @@ export async function startStubRpcServer(
           JSON.stringify({
             jsonrpc: "2.0",
             id: payload.id,
-            error: { code: behavior.code, message: behavior.message },
+            error: {
+              code: behavior.code,
+              message: behavior.message,
+              ...(behavior.data !== undefined ? { data: behavior.data } : {}),
+            },
           }),
         );
         return;

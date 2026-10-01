@@ -34,6 +34,7 @@ async function main(): Promise<void> {
     authRateLimit: { max: env.AUTH_RATE_LIMIT_PER_MINUTE, timeWindowMs: 60_000 },
   });
   services.clusterVerification.start();
+  services.fallbackClusterVerification?.start();
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
     shuttingDown = true;
     logger.info({ signal }, "Shutting down API");
     services.clusterVerification.stop();
+    services.fallbackClusterVerification?.stop();
     await app.close();
     await services.close();
     await Promise.allSettled([redis.quit(), database.close(), tracing.shutdown()]);

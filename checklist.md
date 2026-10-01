@@ -8,6 +8,153 @@ Status values: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `COMPLETE`
 
 # Current Iteration
 
+## Iteration 02 — Wallet Subsystem
+
+Status: IN PROGRESS — implementation complete and tested; awaiting owner verification with a funded Devnet wallet ([guide](./docs/verification/manual-iteration-02.md)) (started and implemented 2026-10-01). Iterations 01 and 01.5 await owner browser verification in parallel ([guide](./docs/verification/manual-iterations-01.md)).
+
+Goal:
+Make wallets first-class organization assets and deliver the first write flow. An operator can:
+- register the connected wallet, a locally generated encrypted wallet, or a watch-only address;
+- see every registered wallet with live balances and an indexed history kept in sync by the worker;
+- send SOL from a managed wallet through the full transaction lifecycle (simulate → review → sign → submit → confirm → reconcile) on Devnet.
+
+All of it uses real Devnet data, provenance, and audit.
+
+Specifications:
+- [SPEC-009 Wallet registry](./docs/specs/SPEC-009-wallet-registry.md) (`WRG`)
+- [SPEC-010 Local wallet generation](./docs/specs/SPEC-010-local-wallet-generation.md) (`LWG`)
+- [SPEC-004 Transaction lifecycle](./docs/specs/SPEC-004-transaction-lifecycle.md) (`TXL`, amendment 2026-10-01: SOL transfer flow, TXL-AC-10..15)
+- Amendments (2026-10-01): SPEC-006 (fallback RPC, PH-AC-07..09), SPEC-007 (wallet permissions in use), SPEC-008 (wallet and transaction audit actions)
+
+Acceptance Criteria (summary; full criteria in the specs):
+- Watch-only and proven-control registration. Signing in never registers a wallet. Validation, organization isolation, and the authorization matrix hold (WRG-AC-01..10).
+- The worker indexes history incrementally with fee and SOL change; failures are visible; manual sync is throttled (WRG-AC-11..14).
+- The registry UI shows balances with provenance and every state (WRG-AC-15).
+- Local wallets are generated and encrypted in the browser, and no key material reaches the API. The flow covers signing, export, presence, and removal (LWG-AC-01..10).
+- The SOL transfer runs the persisted state machine: mandatory simulation, server-built review, message-hash check, idempotent submission, worker confirmation, expiry, and reconciliation. Every transition is audited (TXL-AC-01..15).
+- A verified fallback RPC takes over on primary failure, with `fallbackUsed` in provenance (PH-AC-07..09).
+
+Dependencies:
+- Iteration 01 foundation (sessions, RBAC, audit, provider pipeline, worker), Iteration 01.5 settings.
+- `pnpm db:migrate && pnpm db:seed` on every environment (new wallet and transaction tables).
+- Devnet faucet for funded test wallets (rate-limited; tests skip with a reason when it is unavailable).
+- Web Crypto Ed25519 in the browser (current Chrome, Edge, Firefox, Safari).
+
+Risks:
+- **Public Devnet budget:** 100 req/10 s per IP. Mitigations:
+  - the sync sweep caps wallets and calls per run;
+  - the transaction sweeps batch status checks (≤ 256 signatures per call);
+  - the fallback RPC absorbs primary outages.
+- **Wallet support for `solana:signTransaction`** varies with version-0 transactions. Mitigation: detect the feature and show a clear "This wallet cannot sign transactions" state.
+- **Ambiguous send failures:** mitigated by staying `SUBMITTED` and letting the worker decide by signature status and block height (never a boolean "sent").
+- **Local keys are browser-resident (not custody):** stated in the UI and docs; the export permission is an audit gate, not a cryptographic one.
+
+Verification:
+- Unit, integration, worker, and e2e tests reference WRG-AC, LWG-AC, TXL-AC, and PH-AC ids.
+- Devnet opt-in test: a funded disposable keypair transfers SOL and reaches `RECONCILED`.
+- Owner check in a real browser: register the connected wallet, create a local wallet, transfer Devnet SOL between them, and see `RECONCILED` (manual guide for Iteration 02).
+
+### Work breakdown
+
+#### 2.1 Specifications
+- [x] SPEC-009 Wallet registry and SPEC-010 Local wallet generation with numbered acceptance criteria
+- [x] SPEC-004 amended and moved to implementation (SOL transfer flow, worker design, open questions resolved)
+- [x] Dated amendments to SPEC-006 (fallback RPC), SPEC-007 (wallet permissions in use), SPEC-008 (audit actions)
+
+#### 2.2 Wallet registry (SPEC-009)
+- [x] Migration `0004`: `managed_wallets`, `wallet_tags`, `wallet_assignments`, `wallet_ownership_challenges`, `wallet_sync_state`, `indexed_transactions`
+- [x] Zod contracts (registration, update, list query/response, assignments, history, members) and error codes `WALLET_NOT_FOUND`, `WALLET_ALREADY_REGISTERED`, `WALLET_OWNERSHIP_UNVERIFIED`
+- [x] Domain: metadata validation, category/custody invariant, ownership challenge message and rules
+- [x] `getMultipleAccounts` balance reader in `packages/solana`
+- [x] API: ownership challenges, register, list (+ balances), detail, update/archive, assignments, organization members, history, manual sync
+- [x] Audit actions `wallet.created`, `wallet.registration_rejected`, `wallet.updated`, `wallet.assigned`, `wallet.unassigned`, `wallet.sync_requested`
+- [x] Terminal: `Wallets` navigation, registry list with filters and balances, register connected wallet (ownership signature), add watch-only, wallet detail (metadata, assignments, overview, history), edit/archive (the command palette entry "Create wallet" waits for the command palette, which does not exist yet)
+- [x] Tests: unit, integration (authorization matrix), e2e
+
+#### 2.3 Fallback RPC, history indexing, and sync jobs (SPEC-006 amendment, SPEC-009)
+- [x] Failover across primary and fallback provider pipelines with `fallbackUsed` provenance
+- [x] Fallback cluster verification (startup + periodic); never used while unverified
+- [x] Fallback wired in API and worker; visible in provider health and the owner console
+- [x] Paginated signature reader and `getTransaction` details reader (fee, SOL change)
+- [x] Worker queue `wallets.sync`: sweep scheduler, per-wallet idempotent jobs, backfill cap, details enrichment, failure bookkeeping
+- [x] Owner console Jobs lists the new queues
+- [x] Tests: provider failover unit tests, worker integration (stub RPC), Devnet opt-in
+
+#### 2.4 Local wallet generation (SPEC-010)
+- [x] Terminal `local-wallets` domain: key generation, PBKDF2/AES-GCM encryption, IndexedDB store, presence
+- [x] Signing boundary for local keys (non-extractable Kit signer) and Wallet Standard `solana:signTransaction` (`apps/terminal/src/transactions/wallet-signers.ts`); sign-and-send-only wallets are refused
+- [x] Create flow with custody notice, ownership proof, registration; unregistered-key recovery
+- [x] Export flow (`POST /wallets/{id}/exports`, `wallet.exported`) and remove-from-device flow
+- [x] Tests: crypto unit tests, e2e with request interception (no key material leaves the browser)
+
+#### 2.5 Transaction lifecycle and SOL transfer (SPEC-004)
+- [x] Domain `transactions` in the shared package `@sct/transactions` (ADR-0010): state machine (exhaustive transition table), expected effects, review builder with known-program registry, transition recorder; audit catalog extracted to `@sct/audit`
+- [x] Migration: `transaction_records`, `transaction_state_transitions`, `idempotency_keys`
+- [x] Solana adapters: latest blockhash, fee for message, simulate, send, signature statuses, block height, finalized transaction
+- [x] API: prepare SOL transfer (build + simulate + review), cancel, signing, signing-failed, submit (hash + signature check), list, detail; error code `TRANSACTION_MESSAGE_MISMATCH`
+- [x] Worker queues `transactions.confirmation` and `transactions.reconciliation` (sweeps, re-send while valid, expiry, reconciliation, interim alert)
+- [x] Audit actions `transaction.*`
+- [x] Terminal: Transfer SOL form, review screen (unknown-program acknowledgement), signing via boundary, state timeline, transactions list
+- [x] Test wallet gains `solana:signTransaction`
+- [x] Tests: unit (transition table), integration (stub RPC: idempotency, mismatch, expiry, on-chain error, reconciliation), e2e, Devnet opt-in transfer (the funded transfer skips while the faucet returns 429; an unsigned simulation from a funded account verifies the effect model)
+
+#### 2.6 Documentation and close-out
+- [x] API.md, ARCHITECTURE.md, SECURITY.md, DATA_SOURCES.md, OPERATIONS.md, TESTING.md, database design, domain model, changelog, ADR-0010
+- [x] Manual verification guide for Iteration 02 ([manual-iteration-02.md](./docs/verification/manual-iteration-02.md))
+- [x] Self-review (prompt §111)
+- [ ] Owner verification in a real browser with a Devnet wallet — guide: [manual-iteration-02.md](./docs/verification/manual-iteration-02.md)
+- [ ] Mark iteration COMPLETE — after owner verification
+
+### Test evidence (2026-10-01)
+
+| Suite | Result |
+| --- | --- |
+| Unit (`pnpm test:unit`) | 105 passed |
+| Integration (`pnpm test:integration`: PostgreSQL + Redis + stub RPC) | 106 passed |
+| End-to-end (Chromium desktop + mobile, real Devnet RPC; run on ports 3100/4100 because local dev servers held 3000/4000) | 32 passed |
+| Devnet opt-in (`pnpm test:devnet`) | 8 passed, 1 skipped (`SKIPPED: faucet unavailable (HTTP 429)`) |
+| Lint, boundaries (343 modules), typecheck, format, build, bundle check | Passing |
+
+### Self-review (prompt §111, 2026-10-01)
+
+**Architecture.**
+- New code lives in domain folders: `wallets` (registry), `transactions`, and `local-wallets`.
+- The lifecycle core and the audit catalog moved into shared packages (`@sct/transactions`, `@sct/audit`, ADR-0010) because the worker applies and audits transitions too.
+- Readers depend on the narrow `RpcGateway` port. dependency-cruiser passes.
+- Known debt: `apps/api/src/transactions` imports registry ports from `wallets/` (same app, by design), and the API audit folder keeps only routes and the reader.
+
+**Security.**
+- No key material reaches the API; an e2e test records every request to prove it.
+- Proof of control is required for controlled custody.
+- The API refuses any signed transaction whose message differs from the reviewed one, or whose signature does not verify, before anything is sent. Only the initiator may sign.
+- `wallet.control` plus a `CREATOR`/`CONTROLLER` assignment gates transfers, and a generated authorization matrix covers the registry routes.
+- The transition history is append-only for the application role.
+- Untrusted memos, logs, and errors are sanitized and bounded.
+- Known limit: local keys are browser-resident, so the export permission is an audit gate, not a cryptographic one (documented in SECURITY.md §2.2).
+
+**Data.**
+- Balances, history, simulation, and confirmation come from Devnet with provenance; fallback use is visible. Indexed history states its coverage.
+- Known limit: more than 500 new signatures between two sync runs leaves a gap (SPEC-009 §4.8).
+
+**Solana.**
+- Version-0 messages with a recent blockhash and no compute-budget instructions.
+- Mandatory simulation with an effect check; the Devnet test confirmed that simulated balances include the fee.
+- An ambiguous send stays `SUBMITTED` and is decided by status and block height (`EXPIRED`, never `SUBMISSION_FAILED`). Reconciliation uses finalized `getTransaction` balances.
+
+**Testing.**
+- Every WRG-AC, LWG-AC, TXL-AC, and PH-AC-07..09 criterion has a test.
+- A funded end-to-end transfer to `RECONCILED` could not run automatically today (faucet 429). It is covered by integration and worker tests with a stubbed chain, and by the manual guide.
+
+**Documentation.** Specs (SPEC-009, SPEC-010, and amendments to SPEC-004/006/007/008), ADR-0010, API, architecture, security, data sources, operations, testing, database, domain model, changelog, and the manual guide are all updated.
+
+**UX.**
+- Loading states name the operation; empty and filtered-empty states state what is true.
+- Unavailable balances render `DATA UNAVAILABLE` while rows stay.
+- The review uses full addresses, and the timeline updates while the worker tracks the transaction.
+- axe runs on the registry, local wallet, and transfer pages.
+
+---
+
 ## Iteration 01.5 — User Settings and Owner Console
 
 Status: IN PROGRESS — implementation complete and tested; awaiting owner verification in a real browser (started and implemented 2026-10-01, owner request)
@@ -68,7 +215,7 @@ Verification:
 #### 1.5.5 Tests and documentation
 - [x] Unit, integration, and e2e tests mapped to SET-AC / OWN-AC
 - [x] API.md, ARCHITECTURE.md, SECURITY.md, OPERATIONS.md, TESTING.md, database design, spec index, changelog
-- [ ] Owner verification in a real browser with a Devnet wallet
+- [ ] Owner verification in a real browser with a Devnet wallet — guide: [manual-iterations-01.md](./docs/verification/manual-iterations-01.md) §2–3
 - [ ] Mark iteration COMPLETE — after owner verification
 
 ### Test evidence (2026-10-01)
@@ -196,7 +343,7 @@ Verification:
 - [x] Narrow readers: `ClusterIdentityReader`, `SolBalanceReader`, `TokenAccountReader` (SPL Token + Token-2022), `SignatureHistoryReader`
 - [x] RPC error classification: `RPC_RATE_LIMITED`, `RPC_TIMEOUT`, `RPC_UNAVAILABLE`, `RPC_INVALID_RESPONSE`
 - [x] Devnet integration tests (`@devnet`, compared against raw JSON-RPC calls)
-- [ ] Fallback RPC (`SOLANA_RPC_FALLBACK_URL`) — the variable is parsed but not used; deferred to Iteration 02
+- [x] Fallback RPC (`SOLANA_RPC_FALLBACK_URL`) — delivered in Iteration 02 (SPEC-006 amendment, PH-AC-07..09)
 
 #### 1.8 Authentication foundation (`apps/api/src/auth`)
 - [x] SIWS challenge/verify endpoints, single-use challenges, Ed25519 verification via Web Crypto (`solana:signIn` and `signMessage` fallback)
@@ -245,7 +392,7 @@ Verification:
 - [x] Update ARCHITECTURE.md, API.md, DATA_SOURCES.md, TESTING.md, OPERATIONS.md, SECURITY.md with as-built details
 - [x] changelog.md entry for Iteration 01
 - [x] Self-review against prompt §111 recorded below
-- [ ] Manual verification with a real browser wallet (e.g. Phantom, Solflare, Backpack) on Devnet — requires the owner (see Verification)
+- [ ] Manual verification with a real browser wallet (e.g. Phantom, Solflare, Backpack) on Devnet — requires the owner (see Verification) — guide: [manual-iterations-01.md](./docs/verification/manual-iterations-01.md) §0–1
 - [ ] Mark iteration COMPLETE — after the two pending owner/CI verifications above
 
 ### Test evidence (2026-09-30)

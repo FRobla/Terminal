@@ -1,6 +1,6 @@
 import { WALLET_STANDARD_CHAINS, type PermittedCluster } from "@sct/network";
 import type { SiwsInput } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { buildSiwsMessage, diffSiwsFields, parseSiwsMessage, type SiwsFields } from "../domain/siws-message";
 import { generateNonce, generateSessionToken, hashSessionToken } from "../domain/session-token";
 import type {

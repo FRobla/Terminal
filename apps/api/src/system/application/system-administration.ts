@@ -1,9 +1,9 @@
 import type { Logger } from "@sct/observability";
 import type { NetworkIdentity, QueueState } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { actorAuditFields, type Actor } from "../../auth/application/actor";
 import type { ClusterVerificationService } from "./cluster-verification-service";
-import type { QueueInspector } from "./console-ports";
+import type { ProviderProbeQueue, QueueInspector } from "./console-ports";
 
 type QueueSection =
   | { status: "AVAILABLE"; value: QueueState; latencyMs: number }
@@ -62,7 +62,7 @@ export class SystemAdministration {
   /** OWN-AC-15: the worker processes the job; the API only enqueues it. */
   async runProviderHealthProbe(
     actor: Actor,
-    queue: QueueInspector,
+    queue: ProviderProbeQueue,
   ): Promise<{ queue: string; jobId: string }> {
     const job = await queue.enqueueProbe();
     await this.deps.audit.record({

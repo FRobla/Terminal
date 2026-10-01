@@ -42,12 +42,43 @@ export function installTestWallet(options: TestWalletOptions): void {
       address: base58(publicKey),
       publicKey,
       chains: options.accountChains ?? options.walletChains,
-      features: ["solana:signMessage", ...(options.supportSignIn ? ["solana:signIn"] : [])],
+      features: [
+        "solana:signMessage",
+        "solana:signTransaction",
+        ...(options.supportSignIn ? ["solana:signIn"] : []),
+      ],
     };
   });
   const sign = async (message: Uint8Array<ArrayBuffer>) => {
     const keyPair = await keyPairPromise;
     return new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, keyPair.privateKey, message));
+  };
+
+  /** Set from tests through the page marker to simulate a user rejecting the next transaction. */
+  let rejectNextTransaction = false;
+
+  /** Signs a wire transaction in place: finds this account among the required signers and fills its slot. */
+  const signWireTransaction = async (wire: Uint8Array, publicKey: Uint8Array): Promise<Uint8Array> => {
+    const signatureCount = wire[0] ?? 0;
+    if (signatureCount >= 0x80) throw new Error("Test wallet: too many signatures");
+    const messageOffset = 1 + signatureCount * 64;
+    const message = wire.slice(messageOffset);
+    const versioned = ((message[0] ?? 0) & 0x80) !== 0;
+    const headerOffset = versioned ? 1 : 0;
+    const requiredSigners = message[headerOffset] ?? 0;
+    const keyCount = message[headerOffset + 3] ?? 0;
+    if (keyCount >= 0x80) throw new Error("Test wallet: too many account keys");
+    const keysOffset = headerOffset + 4;
+    let index = -1;
+    for (let key = 0; key < Math.min(requiredSigners, keyCount); key += 1) {
+      const candidate = message.slice(keysOffset + key * 32, keysOffset + (key + 1) * 32);
+      if (candidate.every((byte, position) => byte === publicKey[position])) index = key;
+    }
+    if (index < 0) throw new Error("Test wallet: the account is not a required signer");
+    const signature = await sign(message);
+    const signed = wire.slice();
+    signed.set(signature, 1 + index * 64);
+    return signed;
   };
 
   type Account = Awaited<typeof accountPromise>;
@@ -104,6 +135,22 @@ export function installTestWallet(options: TestWalletOptions): void {
         ),
     },
   };
+  features["solana:signTransaction"] = {
+    version: "1.0.0",
+    supportedTransactionVersions: ["legacy", 0],
+    signTransaction: async (...inputs: Array<{ transaction: Uint8Array }>) => {
+      if (rejectNextTransaction) {
+        rejectNextTransaction = false;
+        throw new Error("User rejected the request.");
+      }
+      const account = await accountPromise;
+      return Promise.all(
+        inputs.map(async ({ transaction }) => ({
+          signedTransaction: await signWireTransaction(transaction, account.publicKey),
+        })),
+      );
+    },
+  };
   if (options.supportSignIn) {
     features["solana:signIn"] = {
       version: "1.0.0",
@@ -139,5 +186,8 @@ export function installTestWallet(options: TestWalletOptions): void {
   // Literal (not TEST_WALLET_MARKER): this function is serialized into the page.
   (window as unknown as Record<string, unknown>)["__SCT_TEST_WALLET__"] = {
     address: () => accountPromise.then((account) => account.address),
+    rejectNextTransaction: () => {
+      rejectNextTransaction = true;
+    },
   };
 }

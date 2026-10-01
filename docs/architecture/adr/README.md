@@ -15,6 +15,7 @@ Statuses: `Proposed` · `Accepted` · `Superseded by ADR-NNNN` · `Rejected`
 | [0007](./0007-redis-bullmq-jobs.md) | Redis and BullMQ for cache, rate limits, and jobs | Accepted |
 | [0008](./0008-devnet-dex-strategy.md) | Devnet DEX strategy | Proposed |
 | [0009](./0009-devnet-valuation-policy.md) | Valuation policy for Devnet assets | Proposed |
+| [0010](./0010-shared-audit-and-transaction-packages.md) | Shared audit and transaction lifecycle packages | Accepted |
 
 Template:
 

@@ -40,6 +40,8 @@ export const runtimeConfigurationSchema = z.object({
   rpcProvider: z.string(),
   /** Redacted: no credentials, query strings, or key-like path segments (PRV-AC-05). */
   rpcEndpoint: z.string(),
+  /** Redacted fallback endpoint, or null when no fallback is configured (SPEC-006 PH-AC-09). */
+  rpcFallbackEndpoint: z.string().nullable(),
   sessionTtlSeconds: z.number().int(),
   sessionIdleTimeoutSeconds: z.number().int(),
   bootstrapOwnerConfigured: z.boolean(),

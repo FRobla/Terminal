@@ -2,7 +2,7 @@ import type { Address } from "@solana/kit";
 import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 import { z } from "zod";
-import type { Commitment, ReadContext, RpcReading, SolanaRpcClient } from "../rpc/solana-rpc-client";
+import type { Commitment, ReadContext, RpcGateway, RpcReading } from "../rpc/solana-rpc-client";
 
 export const TOKEN_ACCOUNTS_DATA_VERSION = "token-accounts.v1";
 
@@ -65,15 +65,15 @@ const tokenAccountsResponseSchema = z.object({
  */
 export class TokenAccountReader {
   constructor(
-    private readonly client: SolanaRpcClient,
+    private readonly client: RpcGateway,
     private readonly commitment: Commitment = "confirmed",
   ) {}
 
   async read(owner: Address, context: ReadContext): Promise<RpcReading<TokenAccountHolding[]>> {
     const results = await Promise.all(
       TOKEN_PROGRAMS.map(async (program) => {
-        const result = await this.client.call("getTokenAccountsByOwner", (abortSignal) =>
-          this.client.rpc
+        const result = await this.client.call("getTokenAccountsByOwner", (abortSignal, rpc) =>
+          rpc
             .getTokenAccountsByOwner(
               owner,
               { programId: program.programId },

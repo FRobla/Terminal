@@ -7,12 +7,14 @@ import {
 import { KNOWN_GENESIS_HASHES } from "@sct/network";
 import {
   ClusterIdentityReader,
+  MultipleBalancesReader,
   SignatureHistoryReader,
   SolanaRpcClient,
   SolBalanceReader,
   solanaRpcProviderDescriptor,
   TOKEN_PROGRAMS,
   TokenAccountReader,
+  TransactionDetailsReader,
 } from "@sct/solana";
 import { createTestKeyPair, integrationEnvironment } from "@sct/testing";
 import { address } from "@solana/kit";
@@ -136,6 +138,52 @@ describe.runIf(RUN)("@devnet wallet readers", () => {
       .map((entry) => entry.signature)
       .filter((signature) => readerSignatures.includes(signature));
     expect(overlap.length).toBeGreaterThan(0);
+  });
+
+  it("WRG-AC-06: batched balances equal raw getBalance calls, and an unfunded address reads 0", async () => {
+    const fresh = (await createTestKeyPair()).address;
+    const reading = await new MultipleBalancesReader(client).read(
+      [TOKEN_OWNER_WITH_ACCOUNTS, fresh],
+      context,
+    );
+    const raw = await rawRpc<{ value: number }>("getBalance", [
+      TOKEN_OWNER_WITH_ACCOUNTS,
+      { commitment: "confirmed" },
+    ]);
+    expect(reading.value[0]?.lamports).toBe(BigInt(raw.value));
+    expect(reading.value[1]).toEqual({ address: fresh, lamports: 0n });
+    expect(reading.provenance).toMatchObject({ method: "getMultipleAccounts", network: "devnet" });
+  });
+
+  it("WRG-AC-11: signature pages chain with before/until, and details match a raw getTransaction call", async () => {
+    const reader = new SignatureHistoryReader(client);
+    const first = await reader.readPage(TOKEN_OWNER_WITH_ACCOUNTS, { limit: 3 }, context);
+    expect(first.value.length).toBe(3);
+    const older = await reader.readPage(
+      TOKEN_OWNER_WITH_ACCOUNTS,
+      { limit: 2, before: first.value[2]?.signature },
+      context,
+    );
+    expect(older.value.map((entry) => entry.signature)).not.toContain(first.value[2]?.signature);
+    const newer = await reader.readPage(
+      TOKEN_OWNER_WITH_ACCOUNTS,
+      { limit: 10, until: first.value[1]?.signature },
+      context,
+    );
+    expect(newer.value.map((entry) => entry.signature)).not.toContain(first.value[1]?.signature);
+
+    const signature = first.value[0]?.signature ?? "";
+    const details = await new TransactionDetailsReader(client).read(signature, "confirmed", context);
+    const raw = await rawRpc<{ meta: { fee: number } } | null>("getTransaction", [
+      signature,
+      { commitment: "confirmed", encoding: "json", maxSupportedTransactionVersion: 0 },
+    ]);
+    if (raw === null) {
+      expect(details.value).toBeNull();
+      return;
+    }
+    expect(details.value?.feeLamports).toBe(BigInt(raw.meta.fee));
+    expect(details.value?.accountKeys.length).toBe(details.value?.preBalances.length);
   });
 
   it("WO-AC-09/10: a freshly generated address has zero balance, no token accounts, and no history", async () => {

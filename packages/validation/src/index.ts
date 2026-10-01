@@ -10,3 +10,5 @@ export * from "./audit/contracts";
 export * from "./users/contracts";
 export * from "./organizations/contracts";
 export * from "./announcements/contracts";
+export * from "./wallets/registry-contracts";
+export * from "./transactions/contracts";

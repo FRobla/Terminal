@@ -19,6 +19,7 @@ export interface ProviderHealthSnapshotWriter {
  */
 export class ProviderHealthProbe {
   private runs = 0;
+  private verified = false;
 
   constructor(
     private readonly config: { cluster: Cluster; localnetGenesisHash?: string | undefined },
@@ -31,6 +32,11 @@ export class ProviderHealthProbe {
       now?: () => Date;
     },
   ) {}
+
+  /** True after the last genesis check matched the configured cluster (gates fallback use, PH-AC-08). */
+  isVerified(): boolean {
+    return this.verified;
+  }
 
   async run(): Promise<ProviderHealth> {
     const descriptor = this.deps.rpc.descriptor;
@@ -52,6 +58,7 @@ export class ProviderHealthProbe {
           expectedGenesisHash(this.config.cluster, this.config.localnetGenesisHash),
           identity.genesisHash,
         );
+        this.verified = outcome.verified;
         await this.deps.health.setVerificationFailure(descriptor.id, outcome.failureReason);
         if (outcome.mainnetDetected) {
           this.deps.logger.fatal(
@@ -60,6 +67,7 @@ export class ProviderHealthProbe {
           );
         }
       } catch (error) {
+        this.verified = false;
         this.deps.logger.warn({ err: error, providerId: descriptor.id }, "Genesis hash probe failed");
       }
     }

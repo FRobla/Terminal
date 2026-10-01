@@ -11,11 +11,13 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@sct/audit": "workspace:*",
     "@sct/config": "workspace:*",
     "@sct/database": "workspace:*",
     "@sct/observability": "workspace:*",
     "@sct/providers": "workspace:*",
     "@sct/solana": "workspace:*",
+    "@sct/transactions": "workspace:*",
     "bullmq": "6.3.10",
     "ioredis": "6.0.0",
     "@sct/network": "workspace:*",

@@ -26,11 +26,13 @@ Each spec defines a prefix (e.g. `WO` for Wallet Overview). Criteria are numbere
 | [SPEC-001](./SPEC-001-foundation.md) | Foundation | `FND` | 01 | IMPLEMENTED |
 | [SPEC-002](./SPEC-002-wallet-overview.md) | Wallet Overview (first vertical slice) | `WO` | 01 | IMPLEMENTED |
 | [SPEC-003](./SPEC-003-data-provenance.md) | Data provenance and availability | `PRV` | 01 | IMPLEMENTED |
-| [SPEC-004](./SPEC-004-transaction-lifecycle.md) | Transaction lifecycle | `TXL` | 02 | DRAFT |
+| [SPEC-004](./SPEC-004-transaction-lifecycle.md) | Transaction lifecycle | `TXL` | 02 | IMPLEMENTED (SOL transfer) |
 | [SPEC-005](./SPEC-005-network-safety.md) | Network safety | `NET` | 01 | IMPLEMENTED |
-| [SPEC-006](./SPEC-006-provider-health.md) | Provider health and capability status | `PH` | 01 | IMPLEMENTED (RPC) |
+| [SPEC-006](./SPEC-006-provider-health.md) | Provider health and capability status | `PH` | 01 / 02 | IMPLEMENTED (RPC + fallback) |
 | [SPEC-007](./SPEC-007-auth-and-rbac.md) | Authentication and RBAC | `AUTH` / `RBAC` | 01 (foundation) / 08 | IMPLEMENTED (foundation) |
 | [SPEC-008](./SPEC-008-audit-logging.md) | Audit logging | `AUD` | 01 | IMPLEMENTED (foundation) |
+| [SPEC-009](./SPEC-009-wallet-registry.md) | Wallet registry | `WRG` | 02 | IMPLEMENTED |
+| [SPEC-010](./SPEC-010-local-wallet-generation.md) | Local wallet generation | `LWG` | 02 | IMPLEMENTED |
 | [SPEC-025](./SPEC-025-user-settings.md) | User settings | `SET` | 01.5 | IMPLEMENTED |
 | [SPEC-026](./SPEC-026-owner-console.md) | Owner console | `OWN` | 01.5 | IMPLEMENTED |
 

@@ -16,6 +16,8 @@ import { WalletConnectControl } from "../wallets/wallet-connect-control";
 /** Only capabilities that exist are listed (prompt §106). Settings needs a session (SET-AC-01). */
 const NAVIGATION = [
   { href: "/", label: "Wallet overview", requiresSession: false },
+  { href: "/wallets", label: "Wallets", requiresSession: true },
+  { href: "/transactions", label: "Transactions", requiresSession: true },
   { href: "/system", label: "System", requiresSession: false },
   { href: "/settings", label: "Settings", requiresSession: true },
 ] as const;

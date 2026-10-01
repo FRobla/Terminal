@@ -57,6 +57,7 @@ function RuntimePanels(props: { runtime: RuntimeInspection }) {
             ["Public origin", configuration.publicAppOrigin],
             ["RPC provider", configuration.rpcProvider],
             ["RPC endpoint", configuration.rpcEndpoint],
+            ["Fallback RPC endpoint", configuration.rpcFallbackEndpoint ?? "Not configured"],
             ["Session lifetime", formatDuration(configuration.sessionTtlSeconds)],
             ["Idle timeout", formatDuration(configuration.sessionIdleTimeoutSeconds)],
             ["Bootstrap owner", configuration.bootstrapOwnerConfigured ? "Configured" : "Not configured"],

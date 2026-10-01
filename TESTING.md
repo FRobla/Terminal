@@ -38,13 +38,21 @@ pnpm coverage
 
 `pnpm test:localnet` arrives with Iteration 02.
 
-### As-built layout (Iteration 01)
+### As-built layout (Iterations 01–02)
 
 - Unit tests sit next to the code (`*.test.ts`). Integration tests sit next to the code as `*.integration.test.ts`; the API harness is `apps/api/test/harness.ts` (real PostgreSQL and Redis, stub JSON-RPC server for failure modes).
 - Devnet tests live in `tests/devnet/`. A public-RPC `429` makes a test **skip with an explicit reason** ("SKIPPED: public Devnet RPC rate limited"); it never passes silently.
 - End-to-end tests live in `tests/e2e/`. `tests/e2e/support.ts` injects the test wallet and grants roles directly in the test database (there is no admin UI until Iteration 08). UI rendering of provider failures uses test-only response interception; the API behavior for those failures is covered by integration tests.
 - Contract coverage: API responses are validated by the same Zod schemas the terminal uses, and `/api/v1/openapi.json` is generated from them (integration test).
 - Iteration 01.5: `apps/api/src/users/settings.integration.test.ts` (SET-AC), `apps/api/src/organizations/owner-console.integration.test.ts` and `apps/api/src/system/owner-console-system.integration.test.ts` (OWN-AC, including a generated check that every `/admin` route is owner-only), and `tests/e2e/settings.spec.ts` (navigation, preferences applied across the terminal, console pages with axe checks, announcement banner). The harness exposes `callAs` and `currentSessionId`. The e2e API runs with `AUTH_RATE_LIMIT_PER_MINUTE=500` because the suite signs in more often than the production default allows.
+- Iteration 02:
+  - API: `apps/api/src/wallets/wallet-registry.integration.test.ts` (WRG-AC, LWG-AC-07, and a generated authorization matrix), `apps/api/src/system/fallback-rpc.integration.test.ts` (PH-AC-07..09; the harness starts a second stub RPC as the fallback), and `apps/api/src/transactions/transactions.integration.test.ts` (TXL-AC with a stubbed chain; real Ed25519 signing with test keypairs).
+  - Worker: `apps/worker/src/wallets/wallet-sync.integration.test.ts` (paging, backfill cap, idempotent upserts, failures) and `apps/worker/src/transactions/transaction-sweeps.integration.test.ts` (confirmation, expiry, re-broadcast, reconciliation, interim alert).
+  - Unit: the exhaustive transition table (`packages/transactions`), the transaction build and decode round trip (`packages/solana`), and local key encryption with Node Web Crypto (`apps/terminal/src/local-wallets`).
+  - E2E: `wallet-registry.spec.ts`, `local-wallets.spec.ts` (records every request to prove no key material leaves the browser), and `transfers.spec.ts` (real Devnet simulation for an unfunded wallet).
+  - The test wallet supports `solana:signTransaction` and `rejectNextTransaction()`.
+  - `expectAfterDevnetRateLimit` retries a Devnet-backed assertion with Refresh after the 10 s budget window, because the terminal correctly shows `RPC rate limited` when the shared public RPC throttles.
+  - Devnet opt-in: `tests/devnet/sol-transfer.devnet.test.ts` checks simulation effects with an unsigned simulation from a funded account. A full funded transfer runs only when the faucet grants an airdrop, and otherwise skips with `SKIPPED: faucet unavailable`.
 
 ## 4. Coverage targets
 
@@ -88,3 +96,10 @@ describe("GetWalletOverview", () => {
 ## 9. CI gates (Iteration 01)
 
 A pull request can merge only when: lint, typecheck, unit, integration, contract, and e2e suites pass; the dependency-boundary check passes; `pnpm audit` has no high/critical findings without a documented exception; and the build succeeds.
+
+## 10. Manual verification
+
+Browser extensions are not automated (§7), so each iteration that touches wallets closes with an owner-run checklist against a real third-party wallet and real Devnet data:
+
+- Iterations 01 and 01.5: [docs/verification/manual-iterations-01.md](./docs/verification/manual-iterations-01.md)
+- Iteration 02: [docs/verification/manual-iteration-02.md](./docs/verification/manual-iteration-02.md)

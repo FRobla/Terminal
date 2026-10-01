@@ -1,4 +1,4 @@
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { actorAuditFields, type Actor } from "../../auth/application/actor";
 
 export type CacheTarget = "wallet-overview" | "permissions";

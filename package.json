@@ -52,6 +52,7 @@
     "@sct/network": "workspace:*",
     "@sct/providers": "workspace:*",
     "@sct/solana": "workspace:*",
+    "@sct/transactions": "workspace:*",
     "@solana/kit": "8.4.0",
     "@next/eslint-plugin-next": "16.3.8"
   }

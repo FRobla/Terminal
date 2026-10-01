@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **As built through Iteration 01.5.** Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
+Status: **As built through Iteration 02.** Sections marked *(planned)* are not yet implemented. Each section is updated when the implementation changes.
 
 ### As-built notes (Iteration 01)
 
@@ -17,6 +17,27 @@ Status: **As built through Iteration 01.5.** Sections marked *(planned)* are not
 - **Queue names** live in `@sct/config` (`queues.ts`) because the worker owns the schedules and the API inspects and enqueues. The API uses BullMQ with its shared Redis connection, created on first use.
 - **Terminal.** `preferences/` loads the user's preferences once and applies them: `<html data-density|data-reduce-motion>`, a `DisplaySettingsProvider` from `@sct/ui` (time zone, address display, explorer name) honored by `Timestamp`, `AddressText`, `DataUnavailable`, and provenance, client-built explorer links (`network/use-explorer-links.ts`), the overview refresh interval, and shortcuts. `settings/` holds the personal sections; `console/` the owner console; `announcements/` the banner under the status bar. Routes live under `app/settings/**`.
 - **Authorization.** Console routes declare `platform.administer`; the terminal hides the console for everyone else (UX only).
+
+### As-built notes (Iteration 02 — Wallet subsystem)
+
+- **New packages ([ADR-0010](./docs/architecture/adr/0010-shared-audit-and-transaction-packages.md)).**
+  - `@sct/audit` holds the audit action catalog, sanitization, `AuditLog`, and the writer, so the worker audits with the same rules as the API.
+  - `@sct/transactions` holds the lifecycle state machine, expected effects, the review model, the transition recorder (compare-and-set plus history plus audit in one database transaction), and its Drizzle repositories.
+- **Solana package.**
+  - `RpcGateway` is what readers depend on. `SolanaRpcClient` serves one endpoint; `FailoverRpcClient` adds the verified fallback endpoint, and provenance names the endpoint that served each value.
+  - New readers: `MultipleBalancesReader` (`getMultipleAccounts`), paged `SignatureHistoryReader.readPage`, `TransactionDetailsReader` (`getTransaction`), and `TransactionChainReaders` (blockhash, fee, simulation, send, statuses, block height).
+  - The System `Transfer` builder and the message/wire decoders live in `solana/src/transactions`. `@solana/kit-plugin-rpc` is still unused: raw Kit RPC methods through the provider pipeline cover sending.
+- **API domains.**
+  - `wallets/` gains the registry: registration with proof of control, directory, assignments, history, exports, and the ownership challenge domain.
+  - `transactions/` is new: SOL transfer preparation, the signing hand-off, submission, and queries.
+- **Worker.**
+  - `wallets/` runs the `wallets.sync` sweep and per-wallet jobs.
+  - `transactions/` runs the confirmation sweep (3 s, plus on-demand jobs after submission) and the reconciliation sweep (10 s).
+  - The worker builds its own failover gateway, gated by a fallback health probe.
+- **Terminal.**
+  - `wallets/` gains the registry list, registration, and detail pages.
+  - `local-wallets/` holds browser key generation, PBKDF2/AES-GCM encryption, the IndexedDB store, export, and removal.
+  - `transactions/` holds the transfer form, the review and signing page, the lifecycle timeline, and the signing boundary (`wallet-signers.ts`: Wallet Standard signer or local key).
 
 Related: [SECURITY.md](./SECURITY.md) · [DATA_SOURCES.md](./DATA_SOURCES.md) · [API.md](./API.md) · [Domain model](./docs/architecture/domain-model.md) · [Database](./docs/architecture/database.md) · [ADRs](./docs/architecture/adr/README.md)
 
@@ -99,7 +120,8 @@ apps/api/src/
 ├── auth/                  sessions, Sign-In With Solana challenge/verify
 ├── organizations/
 ├── users/
-├── audit/
+├── audit/                 HTTP routes and reader; catalog and writer in @sct/audit
+├── transactions/          SOL transfer flows (lifecycle core in @sct/transactions)
 ├── market-data/           (planned)
 ├── portfolio/             (planned)
 ├── trading/               (planned)
@@ -110,7 +132,9 @@ apps/api/src/
 
 apps/terminal/src/
 ├── app/                   thin route files only (layouts, pages, loading/error boundaries)
-├── wallets/               components/, hooks/, api/ (typed client), index.ts
+├── wallets/               overview, registry, wallet detail
+├── local-wallets/         browser key generation, encryption, IndexedDB, export
+├── transactions/          transfer form, review and signing, lifecycle timeline
 ├── network/               cluster banner, cluster verification, wallet-cluster mismatch UI
 ├── system/                system health and provider status views
 ├── auth/
@@ -118,7 +142,8 @@ apps/terminal/src/
 
 apps/worker/src/
 ├── system/                provider health probe jobs
-├── wallets/               wallet synchronization jobs (Iteration 02+)
+├── wallets/               wallet history synchronization
+├── transactions/          confirmation and reconciliation sweeps
 └── worker.ts              queue registration and composition root
 ```
 
@@ -188,14 +213,19 @@ User connects wallet (Wallet Standard, @solana/kit-plugin-wallet)
 
 Specification: [SPEC-002](./docs/specs/SPEC-002-wallet-overview.md).
 
-### 7.2 Write path — transactions *(planned, Iteration 02+)*
+### 7.2 Write path — SOL transfer (Iteration 02)
 
 ```
-Intent (UI) → api: prepare (build instructions, fee payer, blockhash, expected effects)
-  → api: simulate (simulateTransaction) → decoded summary → terminal review screen
-  → user explicit confirmation → wallet signs in browser (non-custodial)
-  → api: submit (idempotency key) → worker: monitor confirmation
-  → worker: reconcile resulting on-chain state vs. expected effects → final state
+Transfer form → POST /transactions/sol-transfers { sourceWalletId, destination, lamports, idempotencyKey }
+  → api: authorize (wallet.control + CREATOR/CONTROLLER) → claim idempotency key
+  → getLatestBlockhash → build v0 message (System Transfer) → DRAFT
+  → SIMULATING: getMultipleAccounts (pre-balances) + getFeeForMessage + simulateTransaction
+  → expected effects (from decoded bytes) vs. simulated post-balances → SIMULATED → AWAITING_SIGNATURE
+  → terminal review (server-built) → explicit Sign → POST /signing → SIGNING
+  → wallet signs exact bytes (Wallet Standard signTransaction or local key) → POST /submit
+  → api: message hash + fee payer signature checked → SUBMITTED (signature persisted) → sendTransaction
+  → worker confirmation sweep: getSignatureStatuses + getBlockHeight → CONFIRMED | CONFIRMATION_FAILED | EXPIRED
+  → worker reconciliation sweep: finalized getTransaction → RECONCILED | RECONCILIATION_REQUIRED | RECONCILIATION_FAILED
 ```
 
 Specification: [SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md).
@@ -211,7 +241,7 @@ Specification: [SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md).
 - **Narrow ports:** the Solana package exposes capability-shaped readers (`SolBalanceReader`, `TokenAccountReader`, `SignatureHistoryReader`, `ClusterIdentityReader`, …), not a single Solana service.
 - **Explorer links:** generated by the `network` domain with the cluster query parameter; never hardcoded.
 
-## 9. Transaction lifecycle *(planned, Iteration 02)*
+## 9. Transaction lifecycle
 
 Explicit state machine, never a boolean:
 
@@ -221,7 +251,7 @@ Failure: SIMULATION_FAILED · SIGNING_FAILED · SUBMISSION_FAILED · EXPIRED · 
 Divergence: RECONCILIATION_REQUIRED
 ```
 
-A successful `sendTransaction` is never treated as proof that the business operation completed. Details: [SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md).
+A successful `sendTransaction` is never treated as proof that the business operation completed. `AWAITING_SIGNATURE` and `SIGNING` may also expire before submission. Every transition goes through `TransactionTransitions` in `@sct/transactions`, used by the API and the worker. Details: [SPEC-004](./docs/specs/SPEC-004-transaction-lifecycle.md).
 
 ## 10. Provider architecture
 
@@ -230,7 +260,7 @@ A successful `sendTransaction` is never treated as proof that the business opera
 - **Provider client wrapper:** every outbound call goes through one wrapper that applies timeout, retry with exponential backoff and jitter, a concurrency limit, a provider-specific distributed rate limiter (Redis), response schema validation (Zod), latency measurement, health recording, and credential redaction.
 - **Provider registry:** a typed configuration of each provider (id, network(s), base URL, auth mode, budget, capabilities). Enabling or disabling a provider is a configuration change and an audited action.
 - **Capability status:** each product capability (e.g. `market-data.price`, `social.x`) exposes `AVAILABLE | DEGRADED | UNAVAILABLE | DISABLED` with a reason. The UI renders unavailable capabilities explicitly.
-- **Fallback:** only between providers that deliver the same metric for the same network; the fallback is recorded in provenance.
+- **Fallback:** only between providers that deliver the same metric for the same network; the fallback is recorded in provenance. The Solana RPC fallback (`SOLANA_RPC_FALLBACK_URL`, Iteration 02) is used only after transport-level failures and only while its genesis hash is verified.
 
 Details: [SPEC-006](./docs/specs/SPEC-006-provider-health.md) and [DATA_SOURCES.md](./DATA_SOURCES.md).
 
@@ -254,7 +284,8 @@ Details: [docs/architecture/database.md](./docs/architecture/database.md).
 
 ## 13. Job architecture
 
-- BullMQ on Redis. Queues are named by domain: `system.provider-health`, `wallets.sync` (02), `transactions.confirmation` (02), `transactions.reconciliation` (02), `market-data.refresh` (03), `alerts.evaluate` (07), `notifications.dispatch` (07).
+- BullMQ on Redis. Queues are named by domain: `system.provider-health`, `wallets.sync` (02: 60 s sweep plus per-wallet jobs), `transactions.confirmation` (02: 3 s sweep plus on-demand), `transactions.reconciliation` (02: 10 s sweep), `market-data.refresh` (03), `alerts.evaluate` (07), `notifications.dispatch` (07).
+- Custom job ids never contain `:` (BullMQ rejects them); deterministic ids use `-` (`sync-<walletId>-<window>`, `confirm-<transactionId>`).
 - Every job has an idempotent handler, a deterministic job id where duplicates are possible, bounded retries with exponential backoff, and a dead-letter policy.
 - Scheduled jobs use repeatable jobs with intervals derived from the provider budget in `DATA_SOURCES.md`. No tight polling loops.
 - Job state relevant to users (e.g. indexing progress) is persisted in PostgreSQL and exposed via the API.

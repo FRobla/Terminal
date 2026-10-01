@@ -1,18 +1,12 @@
 import { and, desc, eq, gte, lt, lte, or, schema, type Database } from "@sct/database";
 import type { AuditEvent } from "@sct/validation";
-import type {
-  AuditEventQuery,
-  AuditEventReader,
-  AuditEventRecord,
-  AuditEventWriter,
-} from "../application/ports";
+import { DrizzleAuditEventWriter } from "@sct/audit";
+import type { AuditEventQuery, AuditEventReader } from "../application/ports";
 
-export class AuditEventRepository implements AuditEventWriter, AuditEventReader {
-  constructor(private readonly db: Database) {}
-
-  async insert(record: AuditEventRecord, transaction?: unknown): Promise<void> {
-    const executor = (transaction as Database | undefined) ?? this.db;
-    await executor.insert(schema.auditEvents).values(record);
+/** Writes through the shared writer and reads for the audit viewer (SPEC-008 AUD-AC-05). */
+export class AuditEventRepository extends DrizzleAuditEventWriter implements AuditEventReader {
+  constructor(db: Database) {
+    super(db);
   }
 
   async list(query: AuditEventQuery): Promise<AuditEvent[]> {

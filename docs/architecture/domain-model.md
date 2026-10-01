@@ -46,7 +46,10 @@ Ubiquitous language for the Solana Corporate Terminal. Terms here are used ident
 ### wallets
 - **WalletOverview** *(01)*: read model of balance, token accounts, recent signatures.
 - **ManagedWallet** *(02)*: organization-registered wallet: address, cluster, label, purpose, category (`TREASURY`, `TRADING`, `OPERATIONS`, `DEVELOPMENT`, `TOKEN_ISSUANCE`, `RESEARCH`, `COLD_STORAGE`, `WATCH_ONLY`), custody type (`BROWSER_WALLET`, `LOCAL_ENCRYPTED`, `WATCH_ONLY`, future `KMS`/`MPC`/`MULTISIG`), tags, notes.
-- **WalletAssignment** *(02/08)*: user or team + application wallet role (`CREATOR`, `FUNDER`, `CONTROLLER`, `VIEWER`).
+- **WalletAssignment** *(02/08)*: user or team + application wallet role (`CREATOR`, `FUNDER`, `CONTROLLER`, `VIEWER`). As built (02): users only; `CREATOR` and `CONTROLLER` may initiate transfers; teams arrive in 08.
+- **OwnershipChallenge** *(02)*: single-use proof that the registering user controls a wallet's key (SPEC-009 §3).
+- **IndexedTransaction**, **WalletSyncState** *(02)*: the derived history index and its cursor; the chain stays authoritative.
+- **LocalKeyRecord** *(02, terminal only)*: the passphrase-encrypted seed of a local wallet in IndexedDB; never reaches the server (SPEC-010).
 - **TokenAccountSnapshot**, **TransactionSignatureSummary**.
 
 ### transactions *(02)*

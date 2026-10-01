@@ -149,3 +149,14 @@ Then the user becomes `owner` of the default organization and `role.assigned` is
 - **2026-10-01 (Iteration 01.5) — Owner-only permission (owner request, SPEC-026):** added `platform.administer` ("Operate the owner console: platform administration and developer tooling") to §5. It is held only by `owner`; `admin` now holds every permission except it (§6 previously read "All except transferring ownership"; that exception remains planned for Iteration 08). RBAC-AC-02's generated matrix covers it.
 - **2026-10-01 (Iteration 01.5) — Disabled accounts:** sign-in verification refuses users whose account is disabled with `403 ACCOUNT_DISABLED` and audits `user.login_failed` with reason `account disabled` (previously the session was created and then treated as revoked). Covered by OWN-AC-07.
 - **2026-10-01 (Iteration 01.5) — Sign-in rate limit:** the per-client auth limit (20/min) is configurable through `AUTH_RATE_LIMIT_PER_MINUTE` (5–1000).
+- **2026-10-01 (Iteration 02) — Wallet permissions in use:** the existing catalog is unchanged; Iteration 02 starts enforcing the wallet permissions.
+
+  | Permission | Routes |
+  | --- | --- |
+  | `wallet.read` | Registry list and detail, indexed history, manual sync, transaction list and detail (SPEC-009, SPEC-004) |
+  | `wallet.create` | Ownership challenges, registration, and metadata updates (SPEC-009) |
+  | `wallet.export` | Recording an export of local wallet recovery material (SPEC-010) |
+  | `wallet.control` | Preparing, signing, and submitting transactions from a managed wallet (SPEC-004), together with a `CREATOR` or `CONTROLLER` wallet assignment |
+  | `organization.manage` | Wallet assignments and the organization member picker (SPEC-009) |
+
+  `wallet.fund` stays reserved (funding flows are not part of Iteration 02). The generated authorization matrix (RBAC-AC-02) covers every new route.

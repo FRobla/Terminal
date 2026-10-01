@@ -1,3 +1,11 @@
+import {
+  CUSTODY_TYPES,
+  TRANSACTION_PURPOSES,
+  TRANSACTION_STATES,
+  WALLET_CATEGORIES,
+  WALLET_ROLES,
+  WALLET_STATUSES,
+} from "@sct/validation";
 import { z } from "zod";
 
 /**
@@ -5,6 +13,16 @@ import { z } from "zod";
  * Unknown metadata keys are stripped by the schemas.
  */
 const address = z.string().max(64);
+
+/** SPEC-004 rule 9 — every transaction transition; signatures use `txSignature` (`signature` is denylisted). */
+const transactionTransition = z.object({
+  from: z.enum(TRANSACTION_STATES).nullable(),
+  to: z.enum(TRANSACTION_STATES),
+  purpose: z.enum(TRANSACTION_PURPOSES),
+  walletId: z.uuid(),
+  txSignature: z.string().max(100).optional(),
+  reason: z.string().max(200).optional(),
+});
 
 export const AUDIT_ACTION_METADATA = {
   "user.login": z.object({ walletAddress: address, method: z.enum(["signIn", "signMessage"]) }),
@@ -61,6 +79,45 @@ export const AUDIT_ACTION_METADATA = {
     target: z.enum(["wallet-overview", "permissions"]),
     keysDeleted: z.number().int().nonnegative(),
   }),
+  // SPEC-009 — wallet registry; SPEC-010 — local wallets
+  "wallet.created": z.object({
+    address,
+    custodyType: z.enum(CUSTODY_TYPES),
+    category: z.enum(WALLET_CATEGORIES),
+  }),
+  "wallet.registration_rejected": z.object({
+    address,
+    custodyType: z.enum(CUSTODY_TYPES),
+    reason: z.enum([
+      "CHALLENGE_NOT_FOUND",
+      "CHALLENGE_CONSUMED",
+      "CHALLENGE_EXPIRED",
+      "CHALLENGE_BINDING_MISMATCH",
+      "SIGNATURE_INVALID",
+    ]),
+  }),
+  "wallet.updated": z.object({
+    address,
+    fields: z.array(z.enum(["label", "purpose", "category", "tags", "notes", "status"])).max(8),
+    status: z.enum(WALLET_STATUSES).optional(),
+  }),
+  "wallet.assigned": z.object({ targetUserId: z.uuid(), role: z.enum(WALLET_ROLES) }),
+  "wallet.unassigned": z.object({ targetUserId: z.uuid(), role: z.enum(WALLET_ROLES) }),
+  "wallet.sync_requested": z.object({ address }),
+  "wallet.exported": z.object({ address, format: z.literal("solana-cli-keypair") }),
+  // SPEC-004 — transaction lifecycle (one action per target state; failures share transaction.failed)
+  "transaction.prepared": transactionTransition,
+  "transaction.simulation_requested": transactionTransition,
+  "transaction.simulated": transactionTransition,
+  "transaction.review_ready": transactionTransition,
+  "transaction.cancelled": transactionTransition,
+  "transaction.signing_requested": transactionTransition,
+  "transaction.submitted": transactionTransition,
+  "transaction.confirming": transactionTransition,
+  "transaction.confirmed": transactionTransition,
+  "transaction.reconciled": transactionTransition,
+  "transaction.reconciliation_required": transactionTransition,
+  "transaction.failed": transactionTransition,
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTION_METADATA;

@@ -33,6 +33,13 @@ describe("application database role", () => {
     await expect(app`truncate audit_events`).rejects.toThrow(/permission denied/);
   });
 
+  it("TXL-AC-09: the transaction transition history is append-only for the application", async () => {
+    await expect(app`update transaction_state_transitions set to_state = 'RECONCILED'`).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(app`delete from transaction_state_transitions`).rejects.toThrow(/permission denied/);
+  });
+
   it("FND-AC-07: cannot run DDL or change reference data", async () => {
     await expect(app`create table intruder (id int)`).rejects.toThrow(/permission denied/);
     await expect(app`drop table sessions`).rejects.toThrow(/must be owner|permission denied/);

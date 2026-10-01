@@ -1,0 +1,20 @@
+{
+  "name": "@sct/audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@sct/database": "workspace:*",
+    "@sct/network": "workspace:*",
+    "@sct/observability": "workspace:*",
+    "@sct/validation": "workspace:*",
+    "zod": "4.6.5"
+  }
+}

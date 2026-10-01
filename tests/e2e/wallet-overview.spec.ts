@@ -1,6 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { connectAndSignIn, query, signInWithRole, testWalletAddress, withTestWallet } from "./support";
+import {
+  connectAndSignIn,
+  query,
+  signInWithRole,
+  testWalletAddress,
+  withTestWallet,
+  expectAfterDevnetRateLimit,
+} from "./support";
 
 test.describe("shell", () => {
   test("NET-AC-05: the Devnet indicator is always visible @responsive", async ({ page }) => {

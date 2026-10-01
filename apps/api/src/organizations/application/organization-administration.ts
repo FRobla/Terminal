@@ -4,7 +4,7 @@ import {
   type AdminOrganization,
   type RoleMatrix,
 } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { actorAuditFields } from "../../auth/application/actor";
 import type { UnitOfWork } from "../../auth/application/ports";
 import { ApiError } from "../../platform/api-error";

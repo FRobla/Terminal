@@ -15,6 +15,9 @@ export type Commitment = "processed" | "confirmed" | "finalized";
 /** Shared by api and worker so both processes use one budget and one health record. */
 export const PRIMARY_RPC_PROVIDER_ID = "solana-public-rpc";
 
+/** Optional second endpoint (SPEC-006 amendment), shared by api and worker like the primary. */
+export const FALLBACK_RPC_PROVIDER_ID = "solana-fallback-rpc";
+
 /**
  * Budget below the documented public Devnet limits (100 req/10 s per IP,
  * 40 req/10 s per method), shared across all processes (DATA_SOURCES.md §4.1).
@@ -51,11 +54,39 @@ export interface RpcReading<T> {
   provenance: Provenance;
 }
 
+/** A provider call result plus the endpoint that served it (primary or fallback, SPEC-006 PH-AC-07). */
+export interface RpcCallResult<T> extends ProviderCallResult<T> {
+  servedBy: ProviderDescriptor;
+  fallbackUsed: boolean;
+}
+
+/**
+ * What readers need from an RPC connection: run one method through the provider
+ * pipeline against some endpoint, and describe the result's provenance.
+ */
+export interface RpcGateway {
+  readonly network: Cluster;
+  call<T>(
+    method: string,
+    execute: (signal: AbortSignal, rpc: Rpc<SolanaRpcApi>) => Promise<T>,
+  ): Promise<RpcCallResult<T>>;
+  provenance(options: ProvenanceOptions): Provenance;
+}
+
+export interface ProvenanceOptions {
+  method: string;
+  result: RpcCallResult<unknown>;
+  context: ReadContext;
+  dataVersion: string;
+  commitment?: Commitment;
+  slot?: bigint;
+}
+
 /**
  * Thin wrapper binding a Kit RPC client to its provider descriptor and the
  * provider-call pipeline. Readers use it; it is not a general "Solana service".
  */
-export class SolanaRpcClient {
+export class SolanaRpcClient implements RpcGateway {
   readonly rpc: Rpc<SolanaRpcApi>;
 
   constructor(
@@ -66,40 +97,47 @@ export class SolanaRpcClient {
     this.rpc = rpc ?? createSolanaRpc(descriptor.endpoint);
   }
 
-  call<T>(method: string, execute: (signal: AbortSignal) => Promise<T>): Promise<ProviderCallResult<T>> {
-    return executeProviderCall(this.callDependencies, {
-      provider: this.descriptor,
-      method,
-      execute,
-      classify: (error) => classifyRpcError(this.descriptor.id, error),
-    });
+  get network(): Cluster {
+    return this.descriptor.network;
   }
 
-  provenance(options: {
-    method: string;
-    result: ProviderCallResult<unknown>;
-    context: ReadContext;
-    dataVersion: string;
-    commitment?: Commitment;
-    slot?: bigint;
-  }): Provenance {
-    return {
-      source: `solana-rpc-${this.descriptor.network}`,
-      sourceType: "rpc",
-      provider: this.descriptor.id,
-      endpoint: redactEndpoint(this.descriptor.endpoint),
-      method: options.method,
-      network: this.descriptor.network,
-      ...(options.commitment ? { commitment: options.commitment } : {}),
-      ...(options.slot !== undefined ? { slot: options.slot.toString() } : {}),
-      retrievedAt: options.result.retrievedAt.toISOString(),
-      observedAt: null,
-      requestId: options.context.requestId,
-      dataVersion: options.dataVersion,
-      confidence: "AUTHORITATIVE",
-      latencyMs: options.result.latencyMs,
-      responseStatus: 200,
-      fallbackUsed: false,
-    };
+  async call<T>(
+    method: string,
+    execute: (signal: AbortSignal, rpc: Rpc<SolanaRpcApi>) => Promise<T>,
+  ): Promise<RpcCallResult<T>> {
+    const result = await executeProviderCall(this.callDependencies, {
+      provider: this.descriptor,
+      method,
+      execute: (signal) => execute(signal, this.rpc),
+      classify: (error) => classifyRpcError(this.descriptor.id, error),
+    });
+    return { ...result, servedBy: this.descriptor, fallbackUsed: false };
   }
+
+  provenance(options: ProvenanceOptions): Provenance {
+    return rpcProvenance(options);
+  }
+}
+
+/** SPEC-003 provenance of an RPC reading, naming the endpoint that actually served it. */
+export function rpcProvenance(options: ProvenanceOptions): Provenance {
+  const servedBy = options.result.servedBy;
+  return {
+    source: `solana-rpc-${servedBy.network}`,
+    sourceType: "rpc",
+    provider: servedBy.id,
+    endpoint: redactEndpoint(servedBy.endpoint),
+    method: options.method,
+    network: servedBy.network,
+    ...(options.commitment ? { commitment: options.commitment } : {}),
+    ...(options.slot !== undefined ? { slot: options.slot.toString() } : {}),
+    retrievedAt: options.result.retrievedAt.toISOString(),
+    observedAt: null,
+    requestId: options.context.requestId,
+    dataVersion: options.dataVersion,
+    confidence: "AUTHORITATIVE",
+    latencyMs: options.result.latencyMs,
+    responseStatus: 200,
+    fallbackUsed: options.result.fallbackUsed,
+  };
 }

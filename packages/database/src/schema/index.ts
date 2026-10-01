@@ -5,3 +5,5 @@ export * from "./auth";
 export * from "./audit";
 export * from "./system";
 export * from "./platform";
+export * from "./wallets";
+export * from "./transactions";

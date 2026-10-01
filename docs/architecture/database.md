@@ -91,11 +91,47 @@ platform_settings                            -- SPEC-026, keyed platform configu
 
 Both JSON columns are versioned configuration, validated by Zod at the API boundary; preferences are read tolerantly (unknown keys dropped, invalid values replaced by defaults). Migration `0003_console_migration_visibility` grants `sct_app` `USAGE` on schema `drizzle` and `SELECT` on `drizzle.__drizzle_migrations` so the owner console can compare applied and committed migrations; the role cannot change that table.
 
+## 3c. Iteration 02 additions
+
+```
+managed_wallets                              -- SPEC-009; archived, never deleted
+  id uuid pk, organization_id fk, address text, cluster cluster_enum, label text, purpose text null,
+  category text check (TREASURY|TRADING|OPERATIONS|DEVELOPMENT|TOKEN_ISSUANCE|RESEARCH|COLD_STORAGE|WATCH_ONLY),
+  custody_type text check (BROWSER_WALLET|LOCAL_ENCRYPTED|WATCH_ONLY), notes text null,
+  status text check (active|archived), created_by_user_id fk users, archived_at null, created_at, updated_at
+  unique(organization_id, address, cluster), check(category <> WATCH_ONLY or custody_type = WATCH_ONLY)
+
+wallet_tags            wallet_id fk, tag text, pk(wallet_id, tag), index(tag)
+wallet_assignments     wallet_id fk, user_id fk, role text check (CREATOR|FUNDER|CONTROLLER|VIEWER),
+                       assigned_by_user_id fk null, pk(wallet_id, user_id, role)
+wallet_ownership_challenges                  -- single use, 5 minutes
+  id, organization_id fk, user_id fk, address, cluster, nonce unique, message, issued_at, expires_at, consumed_at null
+wallet_sync_state      wallet_id pk fk, newest_signature, oldest_signature, backfill_complete, indexed_count,
+                       last_attempt_at, last_success_at, last_failure_at, last_failure_reason
+indexed_transactions   id, wallet_id fk, cluster, signature, slot bigint, block_time null, status (succeeded|failed),
+                       confirmation_status, memo (untrusted), fee_lamports numeric(39,0) null,
+                       sol_change_lamports numeric(39,0) null, details_retrieved_at null
+                       unique(wallet_id, signature), index(wallet_id, slot)
+
+transaction_records                          -- SPEC-004; state changes only via the domain transition function
+  id, organization_id fk, initiated_by_user_id fk, wallet_id fk, cluster, purpose, state, fee_payer,
+  signers jsonb, intent jsonb, expected_effects jsonb, review jsonb null, simulation_result jsonb null,
+  message_bytes bytea, message_hash bytea, unsigned_transaction bytea, signed_transaction bytea null,
+  recent_blockhash, last_valid_block_height bigint, signature unique null, failure jsonb null,
+  reconciliation jsonb null, idempotency_key, last_sent_at, submitted_at, confirmed_at, finalized_at
+  index(organization_id, created_at), index(wallet_id), partial index(state) on open states
+transaction_state_transitions                -- append-only for sct_app (no UPDATE/DELETE/TRUNCATE)
+  id, transaction_id fk, from_state null, to_state, occurred_at, request_id, details jsonb
+idempotency_keys       organization_id fk, user_id fk, scope, key, request_hash, resource_id,
+                       pk(organization_id, user_id, scope, key)
+```
+
+Migrations: `0004_wallet_registry` and `0005_transaction_lifecycle` (with the append-only grant). JSON columns of `transaction_records` hold the server-built review, the simulation summary, and reconciliation results, validated with the Zod contracts in `@sct/validation`. Amounts inside them are decimal strings.
+
 ## 4. Planned tables
 
 | Iteration | Tables |
 | --- | --- |
-| 02 | `managed_wallets` (address, cluster, label, purpose, category, custody_type, organization_id), `wallet_tags`, `wallet_assignments` (user/team, application wallet role), `wallet_sync_state`, `indexed_transactions` (signature, slot, block_time, status, fee, cluster), `transaction_records`, `transaction_state_transitions`, `idempotency_keys` |
 | 03 | `token_metadata_cache` (mint, cluster, name, symbol, uri, update_authority, is_mutable, retrieved_at, expires_at, source), `price_observations` (mint, quote_currency, price numeric, source, observed_at, retrieved_at), `portfolio_snapshots`, `portfolio_snapshot_holdings` |
 | 04 | `swap_quotes` (provider payload snapshot jsonb), `swap_executions` |
 | 05 | `token_drafts`, `token_draft_extensions`, `created_tokens` |

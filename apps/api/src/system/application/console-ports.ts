@@ -28,6 +28,9 @@ export interface ProviderHistoryReader {
 export interface QueueInspector {
   readonly queueName: string;
   inspect(): Promise<QueueState>;
+}
+
+export interface ProviderProbeQueue extends QueueInspector {
   /** Enqueues one provider health probe and returns the job id. */
   enqueueProbe(): Promise<{ jobId: string; jobName: string }>;
 }

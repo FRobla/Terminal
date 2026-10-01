@@ -9,7 +9,7 @@ import {
   walletOverviewSchema,
 } from "@sct/validation";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { clientMetadata, requireSession } from "../../auth/http/access-control";
 import { ApiError } from "../../platform/api-error";
 import { envelope } from "../../platform/envelope";

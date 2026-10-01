@@ -1,5 +1,5 @@
 import { announcementInputSchema, type Announcement, type AnnouncementInput } from "@sct/validation";
-import type { AuditLog } from "../../audit/application/audit-log";
+import type { AuditLog } from "@sct/audit";
 import { actorAuditFields, type Actor } from "../../auth/application/actor";
 import type { Transaction, UnitOfWork } from "../../auth/application/ports";
 

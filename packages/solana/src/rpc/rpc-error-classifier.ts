@@ -4,6 +4,7 @@ import {
   SOLANA_ERROR__JSON_RPC__INVALID_REQUEST,
   SOLANA_ERROR__JSON_RPC__METHOD_NOT_FOUND,
   SOLANA_ERROR__JSON_RPC__PARSE_ERROR,
+  SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
   SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR,
 } from "@solana/kit";
 import { ProviderError } from "@sct/providers";
@@ -14,6 +15,8 @@ const NON_RETRYABLE_JSON_RPC_CODES = new Set<number>([
   SOLANA_ERROR__JSON_RPC__INVALID_REQUEST,
   SOLANA_ERROR__JSON_RPC__METHOD_NOT_FOUND,
   SOLANA_ERROR__JSON_RPC__PARSE_ERROR,
+  // A failed preflight is the node's definitive answer for this signed transaction.
+  SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
 ]);
 
 function retryAfterMs(headers: unknown): number | undefined {
@@ -81,4 +84,15 @@ export function classifyRpcError(providerId: string, error: unknown): ProviderEr
     retryable: true,
     cause: error,
   });
+}
+
+/**
+ * SPEC-006 PH-AC-07: a failure the fallback endpoint may fix — transport failures,
+ * timeouts, rate limits, and malformed responses. A JSON-RPC error response is a
+ * definitive answer from a node (invalid parameters, failed preflight) and is not retried elsewhere.
+ */
+export function isFailoverEligible(error: ProviderError): boolean {
+  if (error.kind !== "UNAVAILABLE") return true;
+  const cause: unknown = error.cause;
+  return !(isSolanaError(cause) && !isSolanaError(cause, SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR));
 }

@@ -1,6 +1,6 @@
 import type { Address } from "@solana/kit";
 import { z } from "zod";
-import type { Commitment, ReadContext, RpcReading, SolanaRpcClient } from "../rpc/solana-rpc-client";
+import type { Commitment, ReadContext, RpcGateway, RpcReading } from "../rpc/solana-rpc-client";
 
 export const SOL_BALANCE_DATA_VERSION = "sol-balance.v1";
 
@@ -15,13 +15,13 @@ const balanceResponseSchema = z.object({
 
 export class SolBalanceReader {
   constructor(
-    private readonly client: SolanaRpcClient,
+    private readonly client: RpcGateway,
     private readonly commitment: Commitment = "confirmed",
   ) {}
 
   async read(address: Address, context: ReadContext): Promise<RpcReading<SolBalance>> {
-    const result = await this.client.call("getBalance", (abortSignal) =>
-      this.client.rpc
+    const result = await this.client.call("getBalance", (abortSignal, rpc) =>
+      rpc
         .getBalance(address, { commitment: this.commitment })
         .send({ abortSignal })
         .then((response) => balanceResponseSchema.parse(response)),
