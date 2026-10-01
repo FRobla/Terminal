@@ -3,7 +3,7 @@
 import { WALLET_STANDARD_CHAINS } from "@sct/network";
 import { createClient } from "@solana/kit";
 import { walletWithoutSigner, type ClientWithWallet } from "@solana/kit-plugin-wallet";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { publicConfig } from "../platform/public-config";
 
 /**
@@ -27,4 +27,19 @@ export function useWalletClient(): ClientWithWallet {
   const client = useContext(WalletClientContext);
   if (!client) throw new Error("useWalletClient must be used inside WalletClientProvider");
   return client;
+}
+
+const subscribeToNothing = () => () => {};
+
+/**
+ * False during server rendering and hydration, true afterwards. The plugin's React hooks
+ * reuse the browser snapshot as the server snapshot, so wallet state read before
+ * hydration completes would not match the server HTML (where the plugin stays 'pending').
+ */
+export function useIsHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
 }

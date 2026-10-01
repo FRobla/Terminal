@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { signInWithWallet } from "../auth/sign-in";
 import { SESSION_QUERY_KEY } from "../auth/use-session";
 import { ApiRequestError, apiRequest } from "../platform/api-client";
-import { TERMINAL_WALLET_CHAIN, useWalletClient } from "./wallet-client";
+import { TERMINAL_WALLET_CHAIN, useIsHydrated, useWalletClient } from "./wallet-client";
 
 function describeError(error: unknown): { title: string; requestId?: string | undefined } {
   if (error instanceof ApiRequestError) return { title: error.message, requestId: error.requestId };
@@ -29,7 +29,10 @@ function describeError(error: unknown): { title: string; requestId?: string | un
  */
 export function WalletConnectionPanel(props: { session: SessionResponse | null }) {
   const client = useWalletClient();
-  const ready = useIsWalletReady(client);
+  // Until hydration completes, render what the server rendered: the plugin is still 'pending' there.
+  const hydrated = useIsHydrated();
+  const walletReady = useIsWalletReady(client);
+  const ready = hydrated && walletReady;
   const wallets = useWallets(client);
   const connected = useConnectedWallet(client);
   const connect = useConnect(client);

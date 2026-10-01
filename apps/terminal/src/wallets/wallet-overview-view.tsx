@@ -10,7 +10,7 @@ import { useNetworkIdentity } from "../network/use-network-identity";
 import { ApiRequestError } from "../platform/api-client";
 import { RecentTransactionsPanel, SolBalancePanel, TokenAccountsPanel } from "./overview-panels";
 import { useWalletOverview } from "./use-wallet-overview";
-import { TERMINAL_WALLET_CHAIN, useWalletClient } from "./wallet-client";
+import { TERMINAL_WALLET_CHAIN, useIsHydrated, useWalletClient } from "./wallet-client";
 import { WalletConnectionPanel } from "./wallet-connection-panel";
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -23,7 +23,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
 /** SPEC-002 — Wallet Overview: connected wallet by default, any valid address as a watch view. */
 export function WalletOverviewView() {
   const client = useWalletClient();
-  const connected = useConnectedWallet(client);
+  const hydrated = useIsHydrated();
+  const connectedWallet = useConnectedWallet(client);
+  // Server HTML never has a connected wallet; keep hydration consistent with it.
+  const connected = hydrated ? connectedWallet : null;
   const { session, can, isLoading: sessionLoading } = useSession();
   const { verified } = useNetworkIdentity();
   const [watchAddress, setWatchAddress] = useState<string | null>(null);

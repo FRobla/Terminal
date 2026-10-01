@@ -28,6 +28,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versio
 - `@solana/kit-plugin-rpc` is deferred to Iteration 02; read-only calls use `createSolanaRpc` with per-call abort signals.
 - Server apps build to self-contained bundles (tsup) and start with `NODE_ENV=production`.
 
+### Fixed — Iteration 01
+- Hydration mismatch on the Wallet Overview: `@solana/kit-plugin-wallet/react` hooks reuse the browser snapshot as the server snapshot, so wallet state is now ignored until hydration completes (`useIsHydrated`).
+
 ### Security — Iteration 01
 - Invisible Unicode characters that the editor had written literally into source files were replaced with explicit `\u` escapes.
 - `pnpm audit` reports two development-only esbuild advisories (low, moderate) in `drizzle-kit` and `tsup` dev-server code paths that the project does not use; accepted and tracked (SECURITY.md §13).
